@@ -41,6 +41,18 @@ router.post('/login', [
       });
     }
 
+    // Get user IP address
+    const userIP = req.headers['x-forwarded-for'] || 
+                   req.headers['x-real-ip'] || 
+                   req.connection.remoteAddress || 
+                   req.socket.remoteAddress ||
+                   req.ip;
+
+    // Update last login time and IP
+    foundUser.lastLoginAt = new Date();
+    foundUser.lastLoginIP = userIP;
+    await foundUser.save();
+
     // Generate token
     const token = generateToken(foundUser._id);
 

@@ -24,6 +24,14 @@ const userSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  lastLoginAt: {
+    type: Date,
+    default: null
+  },
+  lastLoginIP: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true
