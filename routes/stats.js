@@ -275,25 +275,23 @@ router.put('/update-deposit', async (req, res) => {
     const bangkokOffset = 7 * 60;
     const localOffset = now.getTimezoneOffset();
     const bangkokNow = new Date(now.getTime() + (bangkokOffset + localOffset) * 60000);
-    const bangkokHour = bangkokNow.getHours();
 
     const parts = date.split('-');
     const targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
-    const todayDate = new Date(bangkokNow.getFullYear(), bangkokNow.getMonth(), bangkokNow.getDate(), 0, 0, 0, 0);
-    const yesterdayDate = new Date(todayDate);
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    
+    const startFillTime = new Date(targetDate.getTime());
+    startFillTime.setHours(23, 0, 0, 0);
+    
+    const cutoffTime = new Date(targetDate.getTime());
+    cutoffTime.setDate(cutoffTime.getDate() + 1);
+    cutoffTime.setHours(23, 0, 0, 0);
 
-    let isValidTime = false;
-    if (bangkokHour >= 23) {
-      isValidTime = targetDate.getTime() === todayDate.getTime();
-    } else {
-      isValidTime = targetDate.getTime() === yesterdayDate.getTime();
-    }
+    const canFill = bangkokNow >= startFillTime && bangkokNow < cutoffTime;
 
-    if (!isValidTime) {
+    if (!canFill) {
       return res.status(400).json({
         success: false,
-        message: 'Can only update deposit for the correct date based on current time'
+        message: 'Can only update deposit between 23:00 of the target date and 22:59 of the next day'
       });
     }
 
