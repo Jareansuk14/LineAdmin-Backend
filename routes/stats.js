@@ -75,11 +75,24 @@ router.get('/daily', requireAdmin, async (req, res) => {
     // Parse date or use today
     let queryDate = new Date();
     if (date) {
-      queryDate = new Date(date);
+      queryDate = new Date(date + 'T00:00:00.000Z'); // Force UTC
+    } else {
+      queryDate.setUTCHours(0, 0, 0, 0);
     }
-    queryDate.setHours(0, 0, 0, 0);
+    
+    // Create date range for the entire day
+    const startOfDay = new Date(queryDate);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(queryDate);
+    endOfDay.setUTCHours(23, 59, 59, 999);
 
-    const stats = await DailyStats.find({ date: queryDate })
+    const stats = await DailyStats.find({ 
+      date: {
+        $gte: startOfDay,
+        $lte: endOfDay
+      }
+    })
       .populate('user', 'user role')
       .populate({
         path: 'user',
@@ -116,13 +129,11 @@ router.get('/history', requireAdmin, async (req, res) => {
     if (startDate || endDate) {
       query.date = {};
       if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
+        const start = new Date(startDate + 'T00:00:00.000Z');
         query.date.$gte = start;
       }
       if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        const end = new Date(endDate + 'T23:59:59.999Z');
         query.date.$lte = end;
       }
     }
@@ -166,13 +177,11 @@ router.get('/summary', requireAdmin, async (req, res) => {
     if (startDate || endDate) {
       matchQuery.date = {};
       if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
+        const start = new Date(startDate + 'T00:00:00.000Z');
         matchQuery.date.$gte = start;
       }
       if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        const end = new Date(endDate + 'T23:59:59.999Z');
         matchQuery.date.$lte = end;
       }
     }

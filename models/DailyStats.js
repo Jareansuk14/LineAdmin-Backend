@@ -35,7 +35,7 @@ dailyStatsSchema.index({ user: 1, date: -1 });
 // Static method to increment stats
 dailyStatsSchema.statics.incrementStats = async function(userId, type, count = 1) {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setUTCHours(0, 0, 0, 0); // Use UTC
   
   const updateField = {};
   switch (type) {
