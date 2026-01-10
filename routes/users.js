@@ -11,7 +11,7 @@ router.use(authenticateToken);
 // Get all users (Admin only)
 router.get('/', requireAdmin, async (req, res) => {
   try {
-    const users = await User.find().sort({ createdAt: -1 });
+    const users = await User.find().populate('team', 'name').sort({ createdAt: -1 });
     res.json({
       success: true,
       users
@@ -28,7 +28,7 @@ router.get('/', requireAdmin, async (req, res) => {
 // Get single user by ID (Admin only)
 router.get('/:id', requireAdmin, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).populate('team', 'name');
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -66,7 +66,11 @@ router.post('/', [
     .notEmpty()
     .withMessage('Role is required')
     .isIn(['Admin', 'User'])
-    .withMessage('Role must be either Admin or User')
+    .withMessage('Role must be either Admin or User'),
+  body('team')
+    .optional()
+    .isMongoId()
+    .withMessage('Team must be a valid MongoDB ObjectId')
 ], async (req, res) => {
   try {
     // Check validation errors
@@ -79,7 +83,7 @@ router.post('/', [
       });
     }
 
-    const { user, password, role } = req.body;
+    const { user, password, role, team } = req.body;
 
     // Check if username already exists
     const existingUser = await User.findOne({ user });
@@ -90,14 +94,30 @@ router.post('/', [
       });
     }
 
+    // Validate team if provided
+    if (team) {
+      const Team = require('../models/Team');
+      const teamExists = await Team.findById(team);
+      if (!teamExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'Team not found'
+        });
+      }
+    }
+
     // Create new user
     const newUser = new User({
       user,
       password,
-      role
+      role,
+      team: team || null
     });
 
     await newUser.save();
+    
+    // Populate team for response
+    await newUser.populate('team', 'name');
 
     res.status(201).json({
       success: true,
@@ -124,7 +144,14 @@ router.put('/:id', [
   body('role')
     .optional()
     .isIn(['Admin', 'User'])
-    .withMessage('Role must be either Admin or User')
+    .withMessage('Role must be either Admin or User'),
+  body('team')
+    .optional()
+    .custom((value) => {
+      if (value === null || value === '') return true; // Allow null/empty to remove team
+      return require('mongoose').Types.ObjectId.isValid(value);
+    })
+    .withMessage('Team must be a valid MongoDB ObjectId or empty')
 ], async (req, res) => {
   try {
     // Check validation errors
@@ -137,7 +164,7 @@ router.put('/:id', [
       });
     }
 
-    const { password, role } = req.body;
+    const { password, role, team } = req.body;
     const updateData = {};
 
     if (password) {
@@ -145,6 +172,23 @@ router.put('/:id', [
     }
     if (role) {
       updateData.role = role;
+    }
+    if (team !== undefined) {
+      // Allow null to remove team assignment
+      if (team === null || team === '') {
+        updateData.team = null;
+      } else {
+        // Validate team exists
+        const Team = require('../models/Team');
+        const teamExists = await Team.findById(team);
+        if (!teamExists) {
+          return res.status(400).json({
+            success: false,
+            message: 'Team not found'
+          });
+        }
+        updateData.team = team;
+      }
     }
 
     // Find user and update
@@ -159,6 +203,9 @@ router.put('/:id', [
     // Update fields
     Object.assign(user, updateData);
     await user.save();
+    
+    // Populate team for response
+    await user.populate('team', 'name');
 
     res.json({
       success: true,

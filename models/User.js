@@ -21,6 +21,11 @@ const userSchema = new mongoose.Schema({
     enum: ['Admin', 'User'],
     default: 'User'
   },
+  team: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Team',
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now
