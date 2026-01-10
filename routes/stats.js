@@ -165,6 +165,67 @@ router.get('/history', requireAdmin, async (req, res) => {
   }
 });
 
+// Get my stats (User only - their own stats)
+router.get('/my-stats', async (req, res) => {
+  try {
+    const { date } = req.query;
+    
+    // Get user ID from authenticated request
+    const userId = req.user.id;
+    
+    // Convert to Bangkok time (UTC+7)
+    const now = new Date();
+    const bangkokOffset = 7 * 60;
+    const localOffset = now.getTimezoneOffset();
+    const bangkokNow = new Date(now.getTime() + (bangkokOffset + localOffset) * 60000);
+    
+    let queryDate;
+    if (date) {
+      // Parse provided date as Bangkok date
+      const parts = date.split('-');
+      queryDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
+    } else {
+      // Use today in Bangkok timezone
+      queryDate = new Date(bangkokNow.getFullYear(), bangkokNow.getMonth(), bangkokNow.getDate(), 0, 0, 0, 0);
+    }
+
+    const stats = await DailyStats.findOne({ 
+      user: userId, 
+      date: queryDate 
+    });
+
+    if (stats) {
+      res.json({
+        success: true,
+        stats: {
+          registrationsCount: stats.registrationsCount,
+          friendsAddedCount: stats.friendsAddedCount,
+          groupsCreatedCount: stats.groupsCreatedCount,
+          updatedAt: stats.updatedAt
+        }
+      });
+    } else {
+      // No stats for this date
+      res.json({
+        success: true,
+        stats: {
+          registrationsCount: 0,
+          friendsAddedCount: 0,
+          groupsCreatedCount: 0,
+          updatedAt: null
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error('Get my stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching stats'
+    });
+  }
+});
+
 // Get summary stats (Admin only)
 router.get('/summary', requireAdmin, async (req, res) => {
   try {
