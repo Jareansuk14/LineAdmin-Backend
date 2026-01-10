@@ -201,6 +201,8 @@ router.get('/my-stats', async (req, res) => {
           registrationsCount: stats.registrationsCount,
           friendsAddedCount: stats.friendsAddedCount,
           groupsCreatedCount: stats.groupsCreatedCount,
+          depositCount: stats.depositCount,
+          depositAmount: stats.depositAmount,
           updatedAt: stats.updatedAt
         }
       });
@@ -212,6 +214,8 @@ router.get('/my-stats', async (req, res) => {
           registrationsCount: 0,
           friendsAddedCount: 0,
           groupsCreatedCount: 0,
+          depositCount: null,
+          depositAmount: null,
           updatedAt: null
         }
       });
@@ -222,6 +226,118 @@ router.get('/my-stats', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error while fetching stats'
+    });
+  }
+});
+
+// Update deposit stats (User only - called from LineDaily)
+router.put('/update-deposit', async (req, res) => {
+  try {
+    const { username, hwid, date, depositCount, depositAmount } = req.body;
+
+    if (!username || !hwid || !date || depositCount === undefined || depositAmount === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: username, hwid, date, depositCount, depositAmount'
+      });
+    }
+
+    if (!Number.isInteger(depositCount) || depositCount < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'depositCount must be a non-negative integer'
+      });
+    }
+
+    if (typeof depositAmount !== 'number' || depositAmount < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'depositAmount must be a non-negative number'
+      });
+    }
+
+    const user = await User.findOne({ user: username });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (user.hwid && user.hwid !== hwid) {
+      return res.status(403).json({
+        success: false,
+        message: 'HWID mismatch'
+      });
+    }
+
+    const now = new Date();
+    const bangkokOffset = 7 * 60;
+    const localOffset = now.getTimezoneOffset();
+    const bangkokNow = new Date(now.getTime() + (bangkokOffset + localOffset) * 60000);
+    const bangkokHour = bangkokNow.getHours();
+
+    const parts = date.split('-');
+    const targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
+    const todayDate = new Date(bangkokNow.getFullYear(), bangkokNow.getMonth(), bangkokNow.getDate(), 0, 0, 0, 0);
+    const yesterdayDate = new Date(todayDate);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+
+    let isValidTime = false;
+    if (bangkokHour >= 23) {
+      isValidTime = targetDate.getTime() === todayDate.getTime();
+    } else {
+      isValidTime = targetDate.getTime() === yesterdayDate.getTime();
+    }
+
+    if (!isValidTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only update deposit for the correct date based on current time'
+      });
+    }
+
+    const existingStats = await DailyStats.findOne({ user: user._id, date: targetDate });
+    if (!existingStats) {
+      return res.status(400).json({
+        success: false,
+        message: 'No stats found for this date. Cannot add deposit to a day with no activity.'
+      });
+    }
+
+    const hasActivity = existingStats.registrationsCount > 0 || 
+                       existingStats.friendsAddedCount > 0 || 
+                       existingStats.groupsCreatedCount > 0;
+
+    if (!hasActivity) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot add deposit to a day with no activity'
+      });
+    }
+
+    if (existingStats.depositCount !== null || existingStats.depositAmount !== null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Deposit already recorded for this date. Cannot modify.'
+      });
+    }
+
+    existingStats.depositCount = depositCount;
+    existingStats.depositAmount = depositAmount;
+    await existingStats.save();
+
+    res.json({
+      success: true,
+      message: 'Deposit stats updated successfully',
+      stats: existingStats
+    });
+
+  } catch (error) {
+    console.error('Update deposit error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating deposit'
     });
   }
 });
