@@ -391,4 +391,138 @@ router.get('/summary', requireAdmin, async (req, res) => {
   }
 });
 
+// Get team summary stats (Admin only - for image generation)
+router.get('/team-summary', requireAdmin, async (req, res) => {
+  try {
+    const { date } = req.query;
+    
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date parameter is required'
+      });
+    }
+
+    // Parse dates
+    const parts = date.split('-');
+    const targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
+    const previousDate = new Date(targetDate);
+    previousDate.setDate(previousDate.getDate() - 1);
+
+    // Get stats for both dates
+    const [todayStats, yesterdayStats] = await Promise.all([
+      DailyStats.find({ date: targetDate })
+        .populate('user', 'user role team')
+        .populate({ path: 'user', populate: { path: 'team', select: 'name' } }),
+      DailyStats.find({ date: previousDate })
+        .populate('user', 'user role team')
+        .populate({ path: 'user', populate: { path: 'team', select: 'name' } })
+    ]);
+
+    // Group by team
+    const teamMap = new Map();
+
+    // Process today's stats
+    todayStats.forEach(stat => {
+      const teamName = stat.user?.team?.name || 'ไม่มีทีม';
+      if (!teamMap.has(teamName)) {
+        teamMap.set(teamName, {
+          teamName,
+          today: {
+            registrations: 0,
+            friends: 0,
+            groups: 0,
+            depositCount: 0,
+            depositAmount: 0
+          },
+          yesterday: {
+            registrations: 0,
+            friends: 0,
+            groups: 0,
+            depositCount: 0,
+            depositAmount: 0
+          }
+        });
+      }
+      const team = teamMap.get(teamName);
+      team.today.registrations += stat.registrationsCount || 0;
+      team.today.friends += stat.friendsAddedCount || 0;
+      team.today.groups += stat.groupsCreatedCount || 0;
+      if (stat.depositCount !== null) team.today.depositCount += stat.depositCount;
+      if (stat.depositAmount !== null) team.today.depositAmount += stat.depositAmount;
+    });
+
+    // Process yesterday's stats
+    yesterdayStats.forEach(stat => {
+      const teamName = stat.user?.team?.name || 'ไม่มีทีม';
+      if (!teamMap.has(teamName)) {
+        teamMap.set(teamName, {
+          teamName,
+          today: {
+            registrations: 0,
+            friends: 0,
+            groups: 0,
+            depositCount: 0,
+            depositAmount: 0
+          },
+          yesterday: {
+            registrations: 0,
+            friends: 0,
+            groups: 0,
+            depositCount: 0,
+            depositAmount: 0
+          }
+        });
+      }
+      const team = teamMap.get(teamName);
+      team.yesterday.registrations += stat.registrationsCount || 0;
+      team.yesterday.friends += stat.friendsAddedCount || 0;
+      team.yesterday.groups += stat.groupsCreatedCount || 0;
+      if (stat.depositCount !== null) team.yesterday.depositCount += stat.depositCount;
+      if (stat.depositAmount !== null) team.yesterday.depositAmount += stat.depositAmount;
+    });
+
+    // Convert to array and calculate totals
+    const teams = Array.from(teamMap.values()).sort((a, b) => {
+      if (a.teamName === 'ไม่มีทีม') return 1;
+      if (b.teamName === 'ไม่มีทีม') return -1;
+      return a.teamName.localeCompare(b.teamName);
+    });
+
+    // Calculate grand totals
+    const totals = teams.reduce((acc, team) => ({
+      registrations: acc.registrations + team.today.registrations,
+      friends: acc.friends + team.today.friends,
+      groups: acc.groups + team.today.groups,
+      depositCount: acc.depositCount + team.today.depositCount,
+      depositAmount: acc.depositAmount + team.today.depositAmount,
+      yesterdayDepositCount: acc.yesterdayDepositCount + team.yesterday.depositCount,
+      yesterdayDepositAmount: acc.yesterdayDepositAmount + team.yesterday.depositAmount
+    }), {
+      registrations: 0,
+      friends: 0,
+      groups: 0,
+      depositCount: 0,
+      depositAmount: 0,
+      yesterdayDepositCount: 0,
+      yesterdayDepositAmount: 0
+    });
+
+    res.json({
+      success: true,
+      date: targetDate,
+      previousDate: previousDate,
+      teams,
+      totals
+    });
+
+  } catch (error) {
+    console.error('Get team summary error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching team summary'
+    });
+  }
+});
+
 module.exports = router;
