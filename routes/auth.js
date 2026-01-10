@@ -5,13 +5,11 @@ const { generateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Login route
 router.post('/login', [
   body('user').notEmpty().withMessage('Username is required'),
   body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
   try {
-    // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -23,7 +21,6 @@ router.post('/login', [
 
     const { user, password, hwid } = req.body;
 
-    // Find user by username
     const foundUser = await User.findOne({ user });
     if (!foundUser) {
       return res.status(401).json({
@@ -32,7 +29,6 @@ router.post('/login', [
       });
     }
 
-    // Check password
     const isPasswordValid = await foundUser.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -41,9 +37,7 @@ router.post('/login', [
       });
     }
 
-    // Check HWID if provided
     if (hwid) {
-      // If user has HWID set, check if it matches
       if (foundUser.hwid && foundUser.hwid !== hwid) {
         return res.status(403).json({
           success: false,
@@ -51,12 +45,10 @@ router.post('/login', [
         });
       }
       
-      // If user doesn't have HWID set, save it (first login)
       if (!foundUser.hwid) {
         foundUser.hwid = hwid;
       }
     } else {
-      // If HWID is required but not provided, reject
       if (foundUser.hwid) {
         return res.status(400).json({
           success: false,
@@ -65,19 +57,16 @@ router.post('/login', [
       }
     }
 
-    // Get user IP address
     const userIP = req.headers['x-forwarded-for'] || 
                    req.headers['x-real-ip'] || 
                    req.connection.remoteAddress || 
                    req.socket.remoteAddress ||
                    req.ip;
 
-    // Update last login time and IP
     foundUser.lastLoginAt = new Date();
     foundUser.lastLoginIP = userIP;
     await foundUser.save();
 
-    // Generate token
     const token = generateToken(foundUser._id);
 
     res.json({
