@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
-const { generateToken } = require('../middleware/auth');
+const { generateToken, authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -85,6 +85,37 @@ router.post('/login', [
     res.status(500).json({
       success: false,
       message: 'Server error during login'
+    });
+  }
+});
+
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate('team', 'name');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        user: user.user,
+        role: user.role,
+        team: user.team ? {
+          id: user.team._id,
+          name: user.team.name
+        } : null
+      }
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching user'
     });
   }
 });

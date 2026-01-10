@@ -16,15 +16,15 @@ const authenticateToken = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId);
-
+    
     if (!user) {
       return res.status(401).json({
         success: false,
         message: 'Invalid token - user not found'
       });
     }
-
-    req.user = user;
+    
+    req.user = { id: user._id, role: user.role };
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
