@@ -260,4 +260,33 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Reset HWID (Admin only)
+router.post('/:id/reset-hwid', requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    user.hwid = null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'HWID reset successfully',
+      user
+    });
+
+  } catch (error) {
+    console.error('Reset HWID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while resetting HWID'
+    });
+  }
+});
+
 module.exports = router;

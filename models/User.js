@@ -37,6 +37,10 @@ const userSchema = new mongoose.Schema({
   lastLoginIP: {
     type: String,
     default: null
+  },
+  hwid: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true

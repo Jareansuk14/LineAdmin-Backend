@@ -21,7 +21,7 @@ router.post('/login', [
       });
     }
 
-    const { user, password } = req.body;
+    const { user, password, hwid } = req.body;
 
     // Find user by username
     const foundUser = await User.findOne({ user });
@@ -39,6 +39,30 @@ router.post('/login', [
         success: false,
         message: 'Invalid username or password'
       });
+    }
+
+    // Check HWID if provided
+    if (hwid) {
+      // If user has HWID set, check if it matches
+      if (foundUser.hwid && foundUser.hwid !== hwid) {
+        return res.status(403).json({
+          success: false,
+          message: 'บัญชีนี้ถูกผูกกับเครื่องอื่นแล้ว ไม่สามารถใช้งานได้'
+        });
+      }
+      
+      // If user doesn't have HWID set, save it (first login)
+      if (!foundUser.hwid) {
+        foundUser.hwid = hwid;
+      }
+    } else {
+      // If HWID is required but not provided, reject
+      if (foundUser.hwid) {
+        return res.status(400).json({
+          success: false,
+          message: 'HWID is required for this account'
+        });
+      }
     }
 
     // Get user IP address
