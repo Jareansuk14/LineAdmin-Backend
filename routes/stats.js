@@ -72,27 +72,23 @@ router.get('/daily', requireAdmin, async (req, res) => {
   try {
     const { date } = req.query;
     
-    // Parse date or use today
-    let queryDate = new Date();
+    // Convert to Bangkok time (UTC+7)
+    const now = new Date();
+    const bangkokOffset = 7 * 60;
+    const localOffset = now.getTimezoneOffset();
+    const bangkokNow = new Date(now.getTime() + (bangkokOffset + localOffset) * 60000);
+    
+    let queryDate;
     if (date) {
-      queryDate = new Date(date + 'T00:00:00.000Z'); // Force UTC
+      // Parse provided date as Bangkok date
+      const parts = date.split('-');
+      queryDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
     } else {
-      queryDate.setUTCHours(0, 0, 0, 0);
+      // Use today in Bangkok timezone
+      queryDate = new Date(bangkokNow.getFullYear(), bangkokNow.getMonth(), bangkokNow.getDate(), 0, 0, 0, 0);
     }
-    
-    // Create date range for the entire day
-    const startOfDay = new Date(queryDate);
-    startOfDay.setUTCHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(queryDate);
-    endOfDay.setUTCHours(23, 59, 59, 999);
 
-    const stats = await DailyStats.find({ 
-      date: {
-        $gte: startOfDay,
-        $lte: endOfDay
-      }
-    })
+    const stats = await DailyStats.find({ date: queryDate })
       .populate('user', 'user role')
       .populate({
         path: 'user',
@@ -129,11 +125,13 @@ router.get('/history', requireAdmin, async (req, res) => {
     if (startDate || endDate) {
       query.date = {};
       if (startDate) {
-        const start = new Date(startDate + 'T00:00:00.000Z');
+        const parts = startDate.split('-');
+        const start = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
         query.date.$gte = start;
       }
       if (endDate) {
-        const end = new Date(endDate + 'T23:59:59.999Z');
+        const parts = endDate.split('-');
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 23, 59, 59, 999);
         query.date.$lte = end;
       }
     }
@@ -177,11 +175,13 @@ router.get('/summary', requireAdmin, async (req, res) => {
     if (startDate || endDate) {
       matchQuery.date = {};
       if (startDate) {
-        const start = new Date(startDate + 'T00:00:00.000Z');
+        const parts = startDate.split('-');
+        const start = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
         matchQuery.date.$gte = start;
       }
       if (endDate) {
-        const end = new Date(endDate + 'T23:59:59.999Z');
+        const parts = endDate.split('-');
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 23, 59, 59, 999);
         matchQuery.date.$lte = end;
       }
     }
