@@ -24,9 +24,13 @@ router.post('/', authenticateToken, async (req, res) => {
       lastHeartbeatAt: now
     };
     
-    // ถ้าเปลี่ยนจากออฟไลน์เป็นออนไลน์ หรือยังไม่มี onlineSince ให้ตั้งค่า onlineSince
+    // ถ้าเปลี่ยนจากออฟไลน์เป็นออนไลน์ หรือยังไม่มี onlineSince ให้รีเซ็ท heartbeatCount
     if (!wasOnline || !user.onlineSince) {
       updateData.onlineSince = now;
+      updateData.heartbeatCount = 1; // เริ่มนับจาก 1
+    } else {
+      // ถ้ายังออนไลน์อยู่ ให้เพิ่ม heartbeatCount
+      updateData.heartbeatCount = (user.heartbeatCount || 0) + 1;
     }
     
     await User.findByIdAndUpdate(userId, updateData);

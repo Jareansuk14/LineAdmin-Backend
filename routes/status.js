@@ -46,30 +46,50 @@ router.get('/online-status', async (req, res) => {
         const isOnline = user.lastHeartbeatAt && 
           (now - new Date(user.lastHeartbeatAt)) / 1000 < onlineThreshold;
         
-        // ถ้าออฟไลน์และมี onlineSince ให้ clear onlineSince
-        if (!isOnline && user.onlineSince) {
-          // Update database to clear onlineSince (async, don't wait)
-          User.findByIdAndUpdate(user._id, { onlineSince: null }).catch(err => 
-            console.error('Error clearing onlineSince:', err)
+        // ถ้าออฟไลน์ ให้บันทึก heartbeatCount ล่าสุด
+        if (!isOnline && user.heartbeatCount > 0) {
+          // Update database to save last heartbeat count (async, don't wait)
+          User.findByIdAndUpdate(user._id, { 
+            lastHeartbeatCount: user.heartbeatCount,
+            heartbeatCount: 0,
+            onlineSince: null 
+          }).catch(err => 
+            console.error('Error saving last heartbeat count:', err)
           );
         }
         
-        // คำนวณระยะเวลาออนไลน์
-        let onlineDuration = 0;
-        if (isOnline && user.onlineSince) {
-          onlineDuration = Math.floor((now - new Date(user.onlineSince)) / 1000);
-        } else if (!isOnline && user.onlineSince && user.lastHeartbeatAt) {
-          // ถ้าออฟไลน์ ให้ใช้เวลาจาก lastHeartbeatAt ถึง onlineSince
-          onlineDuration = Math.floor((new Date(user.lastHeartbeatAt) - new Date(user.onlineSince)) / 1000);
+        // คำนวณชั่วโมงการทำงาน
+        let heartbeatCount = 0;
+        let secondsSinceLastHeartbeat = 0;
+        
+        if (isOnline) {
+          heartbeatCount = user.heartbeatCount || 0;
+          // คำนวณวินาทีที่ผ่านไปตั้งแต่ heartbeat ล่าสุด (สูงสุด 60 วินาที)
+          if (user.lastHeartbeatAt) {
+            secondsSinceLastHeartbeat = Math.min(
+              Math.floor((now - new Date(user.lastHeartbeatAt)) / 1000),
+              60
+            );
+          }
+        } else {
+          // ใช้ lastHeartbeatCount เมื่อออฟไลน์ (ใช้ค่าที่บันทึกไว้แล้ว)
+          heartbeatCount = user.lastHeartbeatCount || 0;
+          secondsSinceLastHeartbeat = 0; // ไม่นับต่อเมื่อออฟไลน์
         }
+        
+        // คำนวณชั่วโมง: 60 ครั้ง = 1 ชั่วโมง
+        // heartbeatCount เป็นจำนวนครั้งที่ส่งมา (แต่ละครั้ง = 60 วินาที)
+        // รวมกับวินาทีที่ผ่านไปตั้งแต่ heartbeat ล่าสุด
+        const totalSeconds = (heartbeatCount * 60) + secondsSinceLastHeartbeat;
         
         return {
           userId: user._id.toString(),
           username: user.user,
           isOnline,
           lastHeartbeatAt: user.lastHeartbeatAt,
-          onlineSince: isOnline ? user.onlineSince : null, // ส่ง null ถ้าออฟไลน์
-          onlineDuration: onlineDuration
+          heartbeatCount: heartbeatCount,
+          secondsSinceLastHeartbeat: isOnline ? secondsSinceLastHeartbeat : 0,
+          totalSeconds: totalSeconds
         };
       });
       

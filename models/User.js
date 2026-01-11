@@ -49,6 +49,14 @@ const userSchema = new mongoose.Schema({
   onlineSince: {
     type: Date,
     default: null
+  },
+  heartbeatCount: {
+    type: Number,
+    default: 0
+  },
+  lastHeartbeatCount: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true
