@@ -38,7 +38,6 @@ router.post('/login', [
       });
     }
 
-    // Check HWID only for LineAPIBot
     if (clientType === 'LineAPIBot') {
       if (hwid) {
         if (foundUser.hwid && foundUser.hwid !== hwid) {

@@ -41,6 +41,10 @@ const userSchema = new mongoose.Schema({
   hwid: {
     type: String,
     default: null
+  },
+  lastHeartbeatAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

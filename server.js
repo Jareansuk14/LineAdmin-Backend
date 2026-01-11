@@ -9,6 +9,8 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const teamRoutes = require('./routes/teams');
 const statsRoutes = require('./routes/stats');
+const heartbeatRoutes = require('./routes/heartbeat');
+const statusRoutes = require('./routes/status');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -40,6 +42,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/heartbeat', heartbeatRoutes);
+app.use('/api/status', statusRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
