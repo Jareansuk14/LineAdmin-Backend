@@ -38,21 +38,4 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint สำหรับหยุด heartbeat เมื่อปิดโปรแกรม
-router.post('/stop', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    
-    await User.findByIdAndUpdate(userId, {
-      onlineSince: null,
-      lastHeartbeatAt: null
-    });
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Stop heartbeat error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
 module.exports = router;
