@@ -20,6 +20,7 @@ router.post('/login', [
     }
 
     const { user, password, hwid } = req.body;
+    const clientType = req.headers['x-client-type'];
 
     const foundUser = await User.findOne({ user });
     if (!foundUser) {
@@ -37,25 +38,29 @@ router.post('/login', [
       });
     }
 
-    if (hwid) {
-      if (foundUser.hwid && foundUser.hwid !== hwid) {
-        return res.status(403).json({
-          success: false,
-          message: 'บัญชีนี้ถูกผูกกับเครื่องอื่นแล้ว ไม่สามารถใช้งานได้'
-        });
-      }
-      
-      if (!foundUser.hwid) {
-        foundUser.hwid = hwid;
-      }
-    } else {
-      if (foundUser.hwid) {
-        return res.status(400).json({
-          success: false,
-          message: 'HWID is required for this account'
-        });
+    // Check HWID only for LineAPIBot
+    if (clientType === 'LineAPIBot') {
+      if (hwid) {
+        if (foundUser.hwid && foundUser.hwid !== hwid) {
+          return res.status(403).json({
+            success: false,
+            message: 'บัญชีนี้ถูกผูกกับเครื่องอื่นแล้ว ไม่สามารถใช้งานได้'
+          });
+        }
+        
+        if (!foundUser.hwid) {
+          foundUser.hwid = hwid;
+        }
+      } else {
+        if (foundUser.hwid) {
+          return res.status(400).json({
+            success: false,
+            message: 'HWID is required for this account'
+          });
+        }
       }
     }
+    // For LineAdmin Frontend and LineDaily, skip HWID check
 
     const userIP = req.headers['x-forwarded-for'] || 
                    req.headers['x-real-ip'] || 
