@@ -46,11 +46,30 @@ router.get('/online-status', async (req, res) => {
         const isOnline = user.lastHeartbeatAt && 
           (now - new Date(user.lastHeartbeatAt)) / 1000 < onlineThreshold;
         
+        // ถ้าออฟไลน์และมี onlineSince ให้ clear onlineSince
+        if (!isOnline && user.onlineSince) {
+          // Update database to clear onlineSince (async, don't wait)
+          User.findByIdAndUpdate(user._id, { onlineSince: null }).catch(err => 
+            console.error('Error clearing onlineSince:', err)
+          );
+        }
+        
+        // คำนวณระยะเวลาออนไลน์
+        let onlineDuration = 0;
+        if (isOnline && user.onlineSince) {
+          onlineDuration = Math.floor((now - new Date(user.onlineSince)) / 1000);
+        } else if (!isOnline && user.onlineSince && user.lastHeartbeatAt) {
+          // ถ้าออฟไลน์ ให้ใช้เวลาจาก lastHeartbeatAt ถึง onlineSince
+          onlineDuration = Math.floor((new Date(user.lastHeartbeatAt) - new Date(user.onlineSince)) / 1000);
+        }
+        
         return {
           userId: user._id.toString(),
           username: user.user,
           isOnline,
-          lastHeartbeatAt: user.lastHeartbeatAt
+          lastHeartbeatAt: user.lastHeartbeatAt,
+          onlineSince: isOnline ? user.onlineSince : null, // ส่ง null ถ้าออฟไลน์
+          onlineDuration: onlineDuration
         };
       });
       
