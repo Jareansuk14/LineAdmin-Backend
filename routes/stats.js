@@ -271,29 +271,8 @@ router.put('/update-deposit', async (req, res) => {
       });
     }
 
-    const now = new Date();
-    const bangkokOffset = 7 * 60;
-    const localOffset = now.getTimezoneOffset();
-    const bangkokNow = new Date(now.getTime() + (bangkokOffset + localOffset) * 60000);
-
     const parts = date.split('-');
     const targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
-    
-    const startFillTime = new Date(targetDate.getTime());
-    startFillTime.setHours(23, 0, 0, 0);
-    
-    const cutoffTime = new Date(targetDate.getTime());
-    cutoffTime.setDate(cutoffTime.getDate() + 1);
-    cutoffTime.setHours(23, 0, 0, 0);
-
-    const canFill = bangkokNow >= startFillTime && bangkokNow < cutoffTime;
-
-    if (!canFill) {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only update deposit between 23:00 of the target date and 22:59 of the next day'
-      });
-    }
 
     const existingStats = await DailyStats.findOne({ user: user._id, date: targetDate });
     if (!existingStats) {

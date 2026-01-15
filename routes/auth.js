@@ -71,6 +71,9 @@ router.post('/login', [
     foundUser.lastLoginIP = userIP;
     await foundUser.save();
 
+    // Populate team before sending response
+    await foundUser.populate('team', 'name');
+
     const token = generateToken(foundUser._id);
 
     res.json({
@@ -80,7 +83,12 @@ router.post('/login', [
       user: {
         id: foundUser._id,
         user: foundUser.user,
-        role: foundUser.role
+        role: foundUser.role,
+        team: foundUser.team ? {
+          id: foundUser.team._id,
+          name: foundUser.team.name
+        } : null,
+        hwid: foundUser.hwid
       }
     });
 
