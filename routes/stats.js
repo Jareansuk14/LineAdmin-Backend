@@ -234,11 +234,20 @@ router.get('/my-stats', async (req, res) => {
 router.put('/update-deposit', async (req, res) => {
   try {
     const { username, hwid, date, depositCount, depositAmount } = req.body;
+    const clientType = req.headers['x-client-type'];
 
-    if (!username || !hwid || !date || depositCount === undefined || depositAmount === undefined) {
+    if (!username || !date || depositCount === undefined || depositAmount === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: username, hwid, date, depositCount, depositAmount'
+        message: 'Missing required fields: username, date, depositCount, depositAmount'
+      });
+    }
+
+    // HWID is only required for LineAPIBot
+    if (clientType === 'LineAPIBot' && !hwid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required field: hwid'
       });
     }
 
@@ -264,12 +273,16 @@ router.put('/update-deposit', async (req, res) => {
       });
     }
 
-    if (user.hwid && user.hwid !== hwid) {
-      return res.status(403).json({
-        success: false,
-        message: 'HWID mismatch'
-      });
+    // Only verify HWID for LineAPIBot
+    if (clientType === 'LineAPIBot') {
+      if (user.hwid && user.hwid !== hwid) {
+        return res.status(403).json({
+          success: false,
+          message: 'HWID mismatch'
+        });
+      }
     }
+    // For LineAdmin Frontend and LineDaily, skip HWID check
 
     const parts = date.split('-');
     const targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
