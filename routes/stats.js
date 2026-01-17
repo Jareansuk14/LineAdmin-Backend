@@ -275,7 +275,8 @@ router.put('/update-deposit', async (req, res) => {
 
     const hasActivity = existingStats.registrationsCount > 0 || 
                        existingStats.friendsAddedCount > 0 || 
-                       existingStats.groupsCreatedCount > 0;
+                       existingStats.groupsCreatedCount > 0 ||
+                       existingStats.messagesSentCount > 0;
 
     if (!hasActivity) {
       return res.status(400).json({
@@ -540,6 +541,7 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
             registrations: 0,
             friends: 0,
             groups: 0,
+            messages: 0,
             depositCount: 0,
             depositAmount: 0
           },
@@ -547,6 +549,7 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
             registrations: 0,
             friends: 0,
             groups: 0,
+            messages: 0,
             depositCount: 0,
             depositAmount: 0
           }
@@ -556,6 +559,7 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
       team.today.registrations += stat.registrationsCount || 0;
       team.today.friends += stat.friendsAddedCount || 0;
       team.today.groups += stat.groupsCreatedCount || 0;
+      team.today.messages += stat.messagesSentCount || 0;
       if (stat.depositCount !== null) team.today.depositCount += stat.depositCount;
       if (stat.depositAmount !== null) team.today.depositAmount += stat.depositAmount;
     });
@@ -570,6 +574,7 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
             registrations: 0,
             friends: 0,
             groups: 0,
+            messages: 0,
             depositCount: 0,
             depositAmount: 0
           },
@@ -577,6 +582,7 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
             registrations: 0,
             friends: 0,
             groups: 0,
+            messages: 0,
             depositCount: 0,
             depositAmount: 0
           }
@@ -586,6 +592,7 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
       team.yesterday.registrations += stat.registrationsCount || 0;
       team.yesterday.friends += stat.friendsAddedCount || 0;
       team.yesterday.groups += stat.groupsCreatedCount || 0;
+      team.yesterday.messages += stat.messagesSentCount || 0;
       if (stat.depositCount !== null) team.yesterday.depositCount += stat.depositCount;
       if (stat.depositAmount !== null) team.yesterday.depositAmount += stat.depositAmount;
     });
@@ -602,6 +609,7 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
       registrations: acc.registrations + team.today.registrations,
       friends: acc.friends + team.today.friends,
       groups: acc.groups + team.today.groups,
+      messages: acc.messages + team.today.messages,
       depositCount: acc.depositCount + team.today.depositCount,
       depositAmount: acc.depositAmount + team.today.depositAmount,
       yesterdayDepositCount: acc.yesterdayDepositCount + team.yesterday.depositCount,
@@ -610,6 +618,7 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
       registrations: 0,
       friends: 0,
       groups: 0,
+      messages: 0,
       depositCount: 0,
       depositAmount: 0,
       yesterdayDepositCount: 0,
