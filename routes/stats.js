@@ -5,15 +5,12 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Apply authentication to all routes
 router.use(authenticateToken);
 
-// Increment stats (called from C# app)
 router.post('/increment', async (req, res) => {
   try {
     const { username, hwid, type, count } = req.body;
 
-    // Validate input
     if (!username || !hwid || !type) {
       return res.status(400).json({
         success: false,
@@ -28,7 +25,6 @@ router.post('/increment', async (req, res) => {
       });
     }
 
-    // Find user by username
     const user = await User.findOne({ user: username });
     if (!user) {
       return res.status(404).json({
@@ -37,7 +33,6 @@ router.post('/increment', async (req, res) => {
       });
     }
 
-    // Verify HWID matches
     if (user.hwid && user.hwid !== hwid) {
       return res.status(403).json({
         success: false,
@@ -45,7 +40,6 @@ router.post('/increment', async (req, res) => {
       });
     }
 
-    // Increment stats
     const stats = await DailyStats.incrementStats(
       user._id,
       type,
@@ -67,12 +61,10 @@ router.post('/increment', async (req, res) => {
   }
 });
 
-// Get daily stats for all users (Admin only)
 router.get('/daily', requireAdmin, async (req, res) => {
   try {
     const { date } = req.query;
     
-    // Convert to Bangkok time (UTC+7)
     const now = new Date();
     const bangkokOffset = 7 * 60;
     const localOffset = now.getTimezoneOffset();
@@ -80,11 +72,9 @@ router.get('/daily', requireAdmin, async (req, res) => {
     
     let queryDate;
     if (date) {
-      // Parse provided date as Bangkok date
       const parts = date.split('-');
       queryDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
     } else {
-      // Use today in Bangkok timezone
       queryDate = new Date(bangkokNow.getFullYear(), bangkokNow.getMonth(), bangkokNow.getDate(), 0, 0, 0, 0);
     }
 
@@ -114,12 +104,10 @@ router.get('/daily', requireAdmin, async (req, res) => {
   }
 });
 
-// Get stats history (Admin only)
 router.get('/history', requireAdmin, async (req, res) => {
   try {
     const { startDate, endDate, userId } = req.query;
 
-    // Build query
     const query = {};
     
     if (startDate || endDate) {
@@ -165,15 +153,12 @@ router.get('/history', requireAdmin, async (req, res) => {
   }
 });
 
-// Get my stats (User only - their own stats)
 router.get('/my-stats', async (req, res) => {
   try {
     const { date } = req.query;
     
-    // Get user ID from authenticated request
     const userId = req.user.id;
     
-    // Convert to Bangkok time (UTC+7)
     const now = new Date();
     const bangkokOffset = 7 * 60;
     const localOffset = now.getTimezoneOffset();
@@ -181,11 +166,9 @@ router.get('/my-stats', async (req, res) => {
     
     let queryDate;
     if (date) {
-      // Parse provided date as Bangkok date
       const parts = date.split('-');
       queryDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
     } else {
-      // Use today in Bangkok timezone
       queryDate = new Date(bangkokNow.getFullYear(), bangkokNow.getMonth(), bangkokNow.getDate(), 0, 0, 0, 0);
     }
 
@@ -207,7 +190,6 @@ router.get('/my-stats', async (req, res) => {
         }
       });
     } else {
-      // No stats for this date
       res.json({
         success: true,
         stats: {
@@ -230,7 +212,6 @@ router.get('/my-stats', async (req, res) => {
   }
 });
 
-// Update deposit stats (User only - called from LineDaily)
 router.put('/update-deposit', async (req, res) => {
   try {
     const { username, hwid, date, depositCount, depositAmount } = req.body;
@@ -243,7 +224,6 @@ router.put('/update-deposit', async (req, res) => {
       });
     }
 
-    // HWID is only required for LineAPIBot
     if (clientType === 'LineAPIBot' && !hwid) {
       return res.status(400).json({
         success: false,
@@ -273,7 +253,6 @@ router.put('/update-deposit', async (req, res) => {
       });
     }
 
-    // Only verify HWID for LineAPIBot
     if (clientType === 'LineAPIBot') {
       if (user.hwid && user.hwid !== hwid) {
         return res.status(403).json({
@@ -282,7 +261,6 @@ router.put('/update-deposit', async (req, res) => {
         });
       }
     }
-    // For LineAdmin Frontend and LineDaily, skip HWID check
 
     const parts = date.split('-');
     const targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
@@ -317,6 +295,9 @@ router.put('/update-deposit', async (req, res) => {
     existingStats.depositAmount = depositAmount;
     await existingStats.save();
 
+    user.lastDepositUpdateAt = new Date();
+    await user.save();
+
     res.json({
       success: true,
       message: 'Deposit stats updated successfully',
@@ -332,7 +313,6 @@ router.put('/update-deposit', async (req, res) => {
   }
 });
 
-// Lock account for missing deposit (called from LineAPIBot)
 router.post('/lock-account', async (req, res) => {
   try {
     const userId = req.user.id;
@@ -353,11 +333,9 @@ router.post('/lock-account', async (req, res) => {
       });
     }
     
-    // Parse date
     const parts = date.split('-');
     const lockDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
     
-    // Add to lockedDates if not already locked
     if (!user.lockedDates || !Array.isArray(user.lockedDates)) {
       user.lockedDates = [];
     }
@@ -386,7 +364,33 @@ router.post('/lock-account', async (req, res) => {
   }
 });
 
-// Check if account is locked (called from LineAPIBot)
+router.get('/check-update', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      lastDepositUpdateAt: user.lastDepositUpdateAt ? user.lastDepositUpdateAt.toISOString() : null
+    });
+    
+  } catch (error) {
+    console.error('Check update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while checking update'
+    });
+  }
+});
+
+
 router.get('/check-lock', async (req, res) => {
   try {
     const userId = req.user.id;
@@ -401,7 +405,7 @@ router.get('/check-lock', async (req, res) => {
     }
     
     if (!date) {
-      // Check all locked dates
+
       return res.json({
         success: true,
         isLocked: user.lockedDates && user.lockedDates.length > 0,
@@ -409,16 +413,16 @@ router.get('/check-lock', async (req, res) => {
       });
     }
     
-    // Parse date
+
     const parts = date.split('-');
     const checkDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
     
-    // Check if this date is locked
+
     const isLocked = user.lockedDates && user.lockedDates.some(d => 
       d.getTime() === checkDate.getTime()
     );
     
-    // Check if deposit data exists for this date
+
     const stats = await DailyStats.findOne({ 
       user: userId, 
       date: checkDate 
@@ -444,12 +448,12 @@ router.get('/check-lock', async (req, res) => {
   }
 });
 
-// Get summary stats (Admin only)
+
 router.get('/summary', requireAdmin, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
-    // Build match query
+
     const matchQuery = {};
     if (startDate || endDate) {
       matchQuery.date = {};
@@ -495,7 +499,7 @@ router.get('/summary', requireAdmin, async (req, res) => {
   }
 });
 
-// Get team summary stats (Admin only - for image generation)
+
 router.get('/team-summary', requireAdmin, async (req, res) => {
   try {
     const { date } = req.query;
@@ -507,13 +511,13 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
       });
     }
 
-    // Parse dates
+
     const parts = date.split('-');
     const targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
     const previousDate = new Date(targetDate);
     previousDate.setDate(previousDate.getDate() - 1);
 
-    // Get stats for both dates
+
     const [todayStats, yesterdayStats] = await Promise.all([
       DailyStats.find({ date: targetDate })
         .populate('user', 'user role team')
@@ -523,10 +527,10 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
         .populate({ path: 'user', populate: { path: 'team', select: 'name' } })
     ]);
 
-    // Group by team
+
     const teamMap = new Map();
 
-    // Process today's stats
+
     todayStats.forEach(stat => {
       const teamName = stat.user?.team?.name || 'ไม่มีทีม';
       if (!teamMap.has(teamName)) {
@@ -556,7 +560,7 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
       if (stat.depositAmount !== null) team.today.depositAmount += stat.depositAmount;
     });
 
-    // Process yesterday's stats
+
     yesterdayStats.forEach(stat => {
       const teamName = stat.user?.team?.name || 'ไม่มีทีม';
       if (!teamMap.has(teamName)) {
@@ -586,14 +590,14 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
       if (stat.depositAmount !== null) team.yesterday.depositAmount += stat.depositAmount;
     });
 
-    // Convert to array and calculate totals
+
     const teams = Array.from(teamMap.values()).sort((a, b) => {
       if (a.teamName === 'ไม่มีทีม') return 1;
       if (b.teamName === 'ไม่มีทีม') return -1;
       return a.teamName.localeCompare(b.teamName);
     });
 
-    // Calculate grand totals
+
     const totals = teams.reduce((acc, team) => ({
       registrations: acc.registrations + team.today.registrations,
       friends: acc.friends + team.today.friends,

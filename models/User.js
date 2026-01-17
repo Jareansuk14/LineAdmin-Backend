@@ -61,6 +61,10 @@ const userSchema = new mongoose.Schema({
   lockedDates: {
     type: [Date],
     default: []
+  },
+  lastDepositUpdateAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true
