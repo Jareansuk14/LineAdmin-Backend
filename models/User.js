@@ -57,6 +57,10 @@ const userSchema = new mongoose.Schema({
   lastHeartbeatCount: {
     type: Number,
     default: 0
+  },
+  lockedDates: {
+    type: [Date],
+    default: []
   }
 }, {
   timestamps: true

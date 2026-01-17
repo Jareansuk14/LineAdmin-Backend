@@ -332,6 +332,118 @@ router.put('/update-deposit', async (req, res) => {
   }
 });
 
+// Lock account for missing deposit (called from LineAPIBot)
+router.post('/lock-account', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { date } = req.body;
+    
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required field: date'
+      });
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Parse date
+    const parts = date.split('-');
+    const lockDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
+    
+    // Add to lockedDates if not already locked
+    if (!user.lockedDates || !Array.isArray(user.lockedDates)) {
+      user.lockedDates = [];
+    }
+    
+    const isAlreadyLocked = user.lockedDates.some(d => 
+      d.getTime() === lockDate.getTime()
+    );
+    
+    if (!isAlreadyLocked) {
+      user.lockedDates.push(lockDate);
+      await user.save();
+    }
+    
+    res.json({
+      success: true,
+      message: 'Account locked successfully',
+      lockedDate: lockDate.toISOString().split('T')[0]
+    });
+    
+  } catch (error) {
+    console.error('Lock account error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while locking account'
+    });
+  }
+});
+
+// Check if account is locked (called from LineAPIBot)
+router.get('/check-lock', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { date } = req.query;
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    if (!date) {
+      // Check all locked dates
+      return res.json({
+        success: true,
+        isLocked: user.lockedDates && user.lockedDates.length > 0,
+        lockedDates: user.lockedDates ? user.lockedDates.map(d => d.toISOString().split('T')[0]) : []
+      });
+    }
+    
+    // Parse date
+    const parts = date.split('-');
+    const checkDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
+    
+    // Check if this date is locked
+    const isLocked = user.lockedDates && user.lockedDates.some(d => 
+      d.getTime() === checkDate.getTime()
+    );
+    
+    // Check if deposit data exists for this date
+    const stats = await DailyStats.findOne({ 
+      user: userId, 
+      date: checkDate 
+    });
+    
+    const hasDepositData = stats && 
+      stats.depositCount !== null && 
+      stats.depositAmount !== null;
+    
+    res.json({
+      success: true,
+      isLocked: isLocked && !hasDepositData,
+      lockedDate: checkDate.toISOString().split('T')[0],
+      hasDepositData: hasDepositData
+    });
+    
+  } catch (error) {
+    console.error('Check lock error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while checking lock status'
+    });
+  }
+});
+
 // Get summary stats (Admin only)
 router.get('/summary', requireAdmin, async (req, res) => {
   try {
