@@ -184,6 +184,7 @@ router.get('/my-stats', async (req, res) => {
           registrationsCount: stats.registrationsCount,
           friendsAddedCount: stats.friendsAddedCount,
           groupsCreatedCount: stats.groupsCreatedCount,
+          messagesSentCount: stats.messagesSentCount,
           depositCount: stats.depositCount,
           depositAmount: stats.depositAmount,
           updatedAt: stats.updatedAt
@@ -196,6 +197,7 @@ router.get('/my-stats', async (req, res) => {
           registrationsCount: 0,
           friendsAddedCount: 0,
           groupsCreatedCount: 0,
+          messagesSentCount: 0,
           depositCount: null,
           depositAmount: null,
           updatedAt: null
