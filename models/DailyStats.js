@@ -25,6 +25,11 @@ const dailyStatsSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  messagesSentCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   depositCount: {
     type: Number,
     default: null,
@@ -63,6 +68,9 @@ dailyStatsSchema.statics.incrementStats = async function(userId, type, count = 1
       break;
     case 'group':
       updateField.groupsCreatedCount = count;
+      break;
+    case 'message':
+      updateField.messagesSentCount = count;
       break;
     default:
       throw new Error('Invalid stats type');

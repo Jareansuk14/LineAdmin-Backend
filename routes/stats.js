@@ -18,10 +18,10 @@ router.post('/increment', async (req, res) => {
       });
     }
 
-    if (!['registration', 'friend', 'group'].includes(type)) {
+    if (!['registration', 'friend', 'group', 'message'].includes(type)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid type. Must be: registration, friend, or group'
+        message: 'Invalid type. Must be: registration, friend, group, or message'
       });
     }
 
