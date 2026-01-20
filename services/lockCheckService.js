@@ -39,7 +39,6 @@ async function checkUserLockStatus(userId) {
     const bangkokNow = getBangkokTime();
     const today = new Date(bangkokNow.getFullYear(), bangkokNow.getMonth(), bangkokNow.getDate(), 0, 0, 0, 0);
     
-    // Create list of dates to check (7 days: 6 days ago + today)
     const datesToCheck = [];
     for (let i = 6; i >= 0; i--) {
       const checkDate = new Date(today);
@@ -48,54 +47,52 @@ async function checkUserLockStatus(userId) {
     }
     
     const lockedDates = [];
-    const latestDate = datesToCheck[datesToCheck.length - 1];
+    const activeDates = [];
     
-    // Check each date
     for (const checkDate of datesToCheck) {
-      // End time = next day 12:00 PM (Bangkok time)
-      const endTime = new Date(checkDate);
-      endTime.setDate(endTime.getDate() + 1);
-      endTime.setHours(12, 0, 0, 0);
-      
-      const isPastDeadline = bangkokNow >= endTime;
-      
-      // Get stats for this date
       const stats = await DailyStats.findOne({
         user: userId,
         date: checkDate
       });
       
-      if (!stats) {
+      if (!stats || !hasActivity(stats)) {
         continue;
       }
       
-      const hasAct = hasActivity(stats);
       const hasDeposit = hasDepositData(stats);
+      const isToday = checkDate.getTime() === today.getTime();
       
-      // Lock condition: past deadline + has activity + no deposit
-      if (isPastDeadline && hasAct && !hasDeposit) {
-        lockedDates.push(checkDate);
+      if (isToday && !hasDeposit) {
+        const submitTime = new Date(checkDate);
+        submitTime.setHours(23, 0, 0, 0);
+        
+        activeDates.push({
+          date: checkDate,
+          canSubmitAt: submitTime,
+          isSubmittable: bangkokNow >= submitTime
+        });
+      } else if (!isToday && !hasDeposit) {
+        const deadline = new Date(checkDate);
+        deadline.setDate(deadline.getDate() + 1);
+        deadline.setHours(12, 0, 0, 0);
+        
+        if (bangkokNow >= deadline) {
+          lockedDates.push(checkDate);
+        }
       }
     }
     
-    // Exclude latest date (today) from locked dates
-    const pastDatesLocked = lockedDates.filter(d => {
-      const dTime = d.getTime();
-      const latestTime = latestDate.getTime();
-      return dTime !== latestTime;
-    });
-    
-    return pastDatesLocked;
+    return { lockedDates, activeDates };
   } catch (error) {
     console.error(`Error checking lock status for user ${userId}:`, error);
-    return [];
+    return { lockedDates: [], activeDates: [] };
   }
 }
 
 /**
  * Update locked dates for a user
  */
-async function updateUserLockedDates(userId, newLockedDates) {
+async function updateUserLockedDates(userId, lockStatusResult) {
   try {
     const user = await User.findById(userId);
     if (!user) {
@@ -106,28 +103,26 @@ async function updateUserLockedDates(userId, newLockedDates) {
       user.lockedDates = [];
     }
     
-    // Convert dates to Date objects and normalize to midnight
+    const newLockedDates = lockStatusResult.lockedDates || [];
+    
     const normalizedNewDates = newLockedDates.map(d => {
       const date = new Date(d);
       date.setHours(0, 0, 0, 0);
       return date;
     });
     
-    // Normalize existing locked dates
     const normalizedExistingDates = user.lockedDates.map(d => {
       const date = new Date(d);
       date.setHours(0, 0, 0, 0);
       return date;
     });
     
-    // Find dates that need to be added
     const datesToAdd = normalizedNewDates.filter(newDate => {
       return !normalizedExistingDates.some(existingDate => 
         existingDate.getTime() === newDate.getTime()
       );
     });
     
-    // Find dates that should be removed (if they have deposit data now)
     const datesToRemove = [];
     for (const existingDate of normalizedExistingDates) {
       const shouldBeLocked = normalizedNewDates.some(newDate =>
@@ -135,7 +130,6 @@ async function updateUserLockedDates(userId, newLockedDates) {
       );
       
       if (!shouldBeLocked) {
-        // Check if this date now has deposit data
         const stats = await DailyStats.findOne({
           user: userId,
           date: existingDate
@@ -147,9 +141,7 @@ async function updateUserLockedDates(userId, newLockedDates) {
       }
     }
     
-    // Update locked dates
     if (datesToAdd.length > 0 || datesToRemove.length > 0) {
-      // Remove dates that should be removed
       user.lockedDates = user.lockedDates.filter(d => {
         const normalized = new Date(d);
         normalized.setHours(0, 0, 0, 0);
@@ -158,7 +150,6 @@ async function updateUserLockedDates(userId, newLockedDates) {
         );
       });
       
-      // Add new dates
       datesToAdd.forEach(date => {
         user.lockedDates.push(date);
       });
@@ -189,11 +180,11 @@ async function checkAllUsersLockStatus() {
     let totalLocked = 0;
     
     for (const user of users) {
-      const lockedDates = await checkUserLockStatus(user._id);
-      await updateUserLockedDates(user._id, lockedDates);
+      const lockStatusResult = await checkUserLockStatus(user._id);
+      await updateUserLockedDates(user._id, lockStatusResult);
       
       totalChecked++;
-      if (lockedDates.length > 0) {
+      if (lockStatusResult.lockedDates.length > 0) {
         totalLocked++;
       }
     }
