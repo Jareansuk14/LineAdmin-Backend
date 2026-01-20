@@ -37,11 +37,16 @@ function hasDepositData(stats) {
 async function checkUserLockStatus(userId) {
   try {
     const bangkokNow = getBangkokTime();
-    const today = new Date(bangkokNow.getFullYear(), bangkokNow.getMonth(), bangkokNow.getDate(), 0, 0, 0, 0);
+    
+    // Calculate "effective date" - if before 12:00, treat as previous day
+    const effectiveDate = new Date(bangkokNow.getFullYear(), bangkokNow.getMonth(), bangkokNow.getDate(), 0, 0, 0, 0);
+    if (bangkokNow.getHours() < 12) {
+      effectiveDate.setDate(effectiveDate.getDate() - 1);
+    }
     
     const datesToCheck = [];
     for (let i = 6; i >= 0; i--) {
-      const checkDate = new Date(today);
+      const checkDate = new Date(effectiveDate);
       checkDate.setDate(checkDate.getDate() - i);
       datesToCheck.push(checkDate);
     }
