@@ -1,10 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const cron = require('node-cron');
 const connectDB = require('./config/database');
 const seedDefaultAdmin = require('./utils/seedAdmin');
-const { checkAllUsersLockStatus } = require('./services/lockCheckService');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -75,23 +73,12 @@ const startServer = async () => {
     // Seed default admin user
     await seedDefaultAdmin();
     
-    // Start scheduled lock check task (every 1 minute)
-    cron.schedule('* * * * *', async () => {
-      await checkAllUsersLockStatus();
-    });
-    
-    // Run initial lock check after 5 seconds
-    setTimeout(async () => {
-      console.log('[Lock Check] Running initial lock status check...');
-      await checkAllUsersLockStatus();
-    }, 5000);
-    
     // Start listening
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/api/health`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log('[Lock Check] Scheduled task started: Checking lock status every 1 minute');
+      console.log('[Lock Check] Lock status will be calculated on-demand when /api/stats/check-lock is called');
     });
   } catch (error) {
     console.error('Failed to start server:', error);

@@ -2,6 +2,7 @@ const express = require('express');
 const DailyStats = require('../models/DailyStats');
 const User = require('../models/User');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { checkUserLockStatus, updateUserLockedDates } = require('../services/lockCheckService');
 
 const router = express.Router();
 
@@ -407,33 +408,31 @@ router.get('/check-lock', async (req, res) => {
       });
     }
     
-    // Normalize locked dates to ensure they are Date objects
-    const lockedDates = (user.lockedDates || []).map(d => {
+    const lockedDates = await checkUserLockStatus(userId);
+    await updateUserLockedDates(userId, lockedDates);
+    
+    const updatedUser = await User.findById(userId);
+    const normalizedLockedDates = (updatedUser.lockedDates || []).map(d => {
       const dateObj = new Date(d);
       dateObj.setHours(0, 0, 0, 0);
       return dateObj;
     });
     
-    // If no date specified, return all locked dates
     if (!date) {
       return res.json({
         success: true,
-        isLocked: lockedDates.length > 0,
-        lockedDates: lockedDates.map(d => d.toISOString().split('T')[0])
+        isLocked: normalizedLockedDates.length > 0,
+        lockedDates: normalizedLockedDates.map(d => d.toISOString().split('T')[0])
       });
     }
     
-    // Check specific date
     const parts = date.split('-');
     const checkDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
     
-    // Check if date is in lockedDates
-    const isLocked = lockedDates.some(d => 
+    const isLocked = normalizedLockedDates.some(d => 
       d.getTime() === checkDate.getTime()
     );
     
-    // Also check if there's deposit data (if deposit is added, it should be removed from lockedDates by the service)
-    // But we check here as a safety measure
     const stats = await DailyStats.findOne({ 
       user: userId, 
       date: checkDate 
@@ -443,7 +442,6 @@ router.get('/check-lock', async (req, res) => {
       stats.depositCount !== null && 
       stats.depositAmount !== null;
     
-    // If has deposit data, it should not be locked (even if in lockedDates)
     const finalIsLocked = isLocked && !hasDepositData;
     
     res.json({
