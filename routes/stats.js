@@ -2,11 +2,31 @@ const express = require('express');
 const DailyStats = require('../models/DailyStats');
 const User = require('../models/User');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
-const { checkUserLockStatus, updateUserLockedDates } = require('../services/lockCheckService');
+const { checkUserLockStatus, updateUserLockedDates, getBangkokTime } = require('../services/lockCheckService');
 
 const router = express.Router();
 
 router.use(authenticateToken);
+
+router.get('/reqtime', (req, res) => {
+  try {
+    const bangkokTime = getBangkokTime();
+    res.json({
+      success: true,
+      serverTime: bangkokTime.toISOString(),
+      timestamp: bangkokTime.getTime(),
+      dateTime: bangkokTime.toISOString(),
+      date: bangkokTime.toISOString().split('T')[0],
+      time: bangkokTime.toTimeString().split(' ')[0]
+    });
+  } catch (error) {
+    console.error('Request time error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while getting time'
+    });
+  }
+});
 
 router.post('/increment', async (req, res) => {
   try {

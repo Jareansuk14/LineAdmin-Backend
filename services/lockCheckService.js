@@ -228,5 +228,6 @@ async function checkAllUsersLockStatus() {
 module.exports = {
   checkAllUsersLockStatus,
   checkUserLockStatus,
-  updateUserLockedDates
+  updateUserLockedDates,
+  getBangkokTime
 };
