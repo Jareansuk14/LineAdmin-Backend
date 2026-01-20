@@ -654,25 +654,4 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/server-time', (req, res) => {
-  try {
-    const now = new Date();
-    const bangkokOffset = 7 * 60;
-    const localOffset = now.getTimezoneOffset();
-    const bangkokTime = new Date(now.getTime() + (bangkokOffset + localOffset) * 60000);
-    
-    res.json({
-      success: true,
-      serverTime: bangkokTime.toISOString(),
-      timestamp: bangkokTime.getTime()
-    });
-  } catch (error) {
-    console.error('Server time error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while getting server time'
-    });
-  }
-});
-
 module.exports = router;
