@@ -114,7 +114,12 @@ async function updateUserLockedDates(userId, lockResult) {
       user.lockedDates = [];
     }
     
+    if (!user.activeDates || !Array.isArray(user.activeDates)) {
+      user.activeDates = [];
+    }
+    
     const newLockedDates = lockResult.lockedDates || [];
+    const newActiveDates = lockResult.activeDates || [];
     
     const normalizedNewDates = newLockedDates.map(d => {
       const date = new Date(d);
@@ -152,6 +157,8 @@ async function updateUserLockedDates(userId, lockResult) {
       }
     }
     
+    let hasChanges = false;
+    
     if (datesToAdd.length > 0 || datesToRemove.length > 0) {
       user.lockedDates = user.lockedDates.filter(d => {
         const normalized = new Date(d);
@@ -165,7 +172,7 @@ async function updateUserLockedDates(userId, lockResult) {
         user.lockedDates.push(date);
       });
       
-      await user.save();
+      hasChanges = true;
       
       if (datesToAdd.length > 0) {
         console.log(`User ${user.user} (${userId}): Added ${datesToAdd.length} locked date(s)`);
@@ -173,6 +180,18 @@ async function updateUserLockedDates(userId, lockResult) {
       if (datesToRemove.length > 0) {
         console.log(`User ${user.user} (${userId}): Removed ${datesToRemove.length} locked date(s) (has deposit now)`);
       }
+    }
+    
+    const activeDatesChanged = JSON.stringify(user.activeDates) !== JSON.stringify(newActiveDates);
+    
+    if (activeDatesChanged) {
+      user.activeDates = newActiveDates;
+      hasChanges = true;
+      console.log(`User ${user.user} (${userId}): Updated ${newActiveDates.length} active date(s)`);
+    }
+    
+    if (hasChanges) {
+      await user.save();
     }
   } catch (error) {
     console.error(`Error updating locked dates for user ${userId}:`, error);

@@ -62,6 +62,16 @@ const userSchema = new mongoose.Schema({
     type: [Date],
     default: []
   },
+  activeDates: {
+    type: [{
+      date: String,
+      hasActivity: Boolean,
+      hasDeposit: Boolean,
+      canSubmitAt: String,
+      isSubmittable: Boolean
+    }],
+    default: []
+  },
   lastDepositUpdateAt: {
     type: Date,
     default: null

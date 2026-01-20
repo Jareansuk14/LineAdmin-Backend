@@ -423,7 +423,7 @@ router.get('/check-lock', async (req, res) => {
         success: true,
         isLocked: normalizedLockedDates.length > 0,
         lockedDates: normalizedLockedDates.map(d => d.toISOString().split('T')[0]),
-        activeDates: lockResult.activeDates || []
+        activeDates: updatedUser.activeDates || []
       });
     }
     
