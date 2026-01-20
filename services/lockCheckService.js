@@ -48,6 +48,7 @@ async function checkUserLockStatus(userId) {
     
     const lockedDates = [];
     const activeDates = [];
+    const latestDate = datesToCheck[datesToCheck.length - 1];
     
     for (const checkDate of datesToCheck) {
       const stats = await DailyStats.findOne({
@@ -55,28 +56,38 @@ async function checkUserLockStatus(userId) {
         date: checkDate
       });
       
-      if (!stats || !hasActivity(stats)) {
+      if (!stats) {
         continue;
       }
       
+      const hasAct = hasActivity(stats);
       const hasDeposit = hasDepositData(stats);
-      const isToday = checkDate.getTime() === today.getTime();
       
-      if (isToday && !hasDeposit) {
+      if (!hasAct || hasDeposit) {
+        continue;
+      }
+      
+      const isToday = checkDate.getTime() === latestDate.getTime();
+      
+      if (isToday) {
         const submitTime = new Date(checkDate);
         submitTime.setHours(23, 0, 0, 0);
         
         activeDates.push({
-          date: checkDate,
-          canSubmitAt: submitTime,
+          date: checkDate.toISOString().split('T')[0],
+          hasActivity: true,
+          hasDeposit: false,
+          canSubmitAt: submitTime.toISOString(),
           isSubmittable: bangkokNow >= submitTime
         });
-      } else if (!isToday && !hasDeposit) {
+      } else {
         const deadline = new Date(checkDate);
         deadline.setDate(deadline.getDate() + 1);
         deadline.setHours(12, 0, 0, 0);
         
-        if (bangkokNow >= deadline) {
+        const isPastDeadline = bangkokNow >= deadline;
+        
+        if (isPastDeadline) {
           lockedDates.push(checkDate);
         }
       }
@@ -92,7 +103,7 @@ async function checkUserLockStatus(userId) {
 /**
  * Update locked dates for a user
  */
-async function updateUserLockedDates(userId, lockStatusResult) {
+async function updateUserLockedDates(userId, lockResult) {
   try {
     const user = await User.findById(userId);
     if (!user) {
@@ -103,7 +114,7 @@ async function updateUserLockedDates(userId, lockStatusResult) {
       user.lockedDates = [];
     }
     
-    const newLockedDates = lockStatusResult.lockedDates || [];
+    const newLockedDates = lockResult.lockedDates || [];
     
     const normalizedNewDates = newLockedDates.map(d => {
       const date = new Date(d);
@@ -180,11 +191,11 @@ async function checkAllUsersLockStatus() {
     let totalLocked = 0;
     
     for (const user of users) {
-      const lockStatusResult = await checkUserLockStatus(user._id);
-      await updateUserLockedDates(user._id, lockStatusResult);
+      const lockResult = await checkUserLockStatus(user._id);
+      await updateUserLockedDates(user._id, lockResult);
       
       totalChecked++;
-      if (lockStatusResult.lockedDates.length > 0) {
+      if (lockResult.lockedDates.length > 0) {
         totalLocked++;
       }
     }

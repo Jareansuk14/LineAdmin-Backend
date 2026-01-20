@@ -408,8 +408,8 @@ router.get('/check-lock', async (req, res) => {
       });
     }
     
-    const lockStatusResult = await checkUserLockStatus(userId);
-    await updateUserLockedDates(userId, lockStatusResult);
+    const lockResult = await checkUserLockStatus(userId);
+    await updateUserLockedDates(userId, lockResult);
     
     const updatedUser = await User.findById(userId);
     const normalizedLockedDates = (updatedUser.lockedDates || []).map(d => {
@@ -419,17 +419,11 @@ router.get('/check-lock', async (req, res) => {
     });
     
     if (!date) {
-      const activeDatesFormatted = (lockStatusResult.activeDates || []).map(ad => ({
-        date: ad.date.toISOString().split('T')[0],
-        canSubmitAt: ad.canSubmitAt.toISOString(),
-        isSubmittable: ad.isSubmittable
-      }));
-      
       return res.json({
         success: true,
         isLocked: normalizedLockedDates.length > 0,
         lockedDates: normalizedLockedDates.map(d => d.toISOString().split('T')[0]),
-        activeDates: activeDatesFormatted
+        activeDates: lockResult.activeDates || []
       });
     }
     
