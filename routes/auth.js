@@ -19,7 +19,7 @@ router.post('/login', [
       });
     }
 
-    const { user, password, hwid } = req.body;
+    const { user, password, hwid, clientVersion } = req.body;
     const clientType = req.headers['x-client-type'];
 
     const foundUser = await User.findOne({ user });
@@ -57,6 +57,10 @@ router.post('/login', [
             message: 'HWID is required for this account'
           });
         }
+      }
+      
+      if (clientVersion) {
+        foundUser.clientVersion = clientVersion;
       }
     }
     // For LineAdmin Frontend and LineDaily, skip HWID check

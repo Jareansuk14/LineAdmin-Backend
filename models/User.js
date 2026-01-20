@@ -75,6 +75,10 @@ const userSchema = new mongoose.Schema({
   lastDepositUpdateAt: {
     type: Date,
     default: null
+  },
+  clientVersion: {
+    type: String,
+    default: null
   }
 }, {
   timestamps: true
