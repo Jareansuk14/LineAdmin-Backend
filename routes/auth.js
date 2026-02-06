@@ -48,6 +48,19 @@ router.post('/login', [
 
     if (clientType === 'LineAPIBot') {
       if (hwid) {
+        // Check if this HWID is already used by another user
+        const existingUserWithHwid = await User.findOne({ 
+          hwid: hwid, 
+          _id: { $ne: foundUser._id } 
+        });
+        
+        if (existingUserWithHwid) {
+          return res.status(403).json({
+            success: false,
+            message: 'HWID นี้ถูกใช้งานโดยบัญชีอื่นแล้ว ไม่สามารถใช้งานได้'
+          });
+        }
+        
         if (foundUser.hwid && foundUser.hwid !== hwid) {
           return res.status(403).json({
             success: false,
