@@ -78,7 +78,6 @@ const startServer = async () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/api/health`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log('[Lock Check] Lock status will be calculated on-demand when /api/stats/check-lock is called');
     });
   } catch (error) {
     console.error('Failed to start server:', error);

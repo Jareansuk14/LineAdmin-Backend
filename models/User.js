@@ -58,24 +58,6 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  lockedDates: {
-    type: [Date],
-    default: []
-  },
-  activeDates: {
-    type: [{
-      date: String,
-      hasActivity: Boolean,
-      hasDeposit: Boolean,
-      canSubmitAt: String,
-      isSubmittable: Boolean
-    }],
-    default: []
-  },
-  lastDepositUpdateAt: {
-    type: Date,
-    default: null
-  },
   clientVersion: {
     type: String,
     default: null

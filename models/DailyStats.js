@@ -29,16 +29,6 @@ const dailyStatsSchema = new mongoose.Schema({
     type: Number,
     default: 0,
     min: 0
-  },
-  depositCount: {
-    type: Number,
-    default: null,
-    min: 0
-  },
-  depositAmount: {
-    type: Number,
-    default: null,
-    min: 0
   }
 }, {
   timestamps: true

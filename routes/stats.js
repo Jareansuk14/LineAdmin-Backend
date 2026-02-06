@@ -2,7 +2,7 @@ const express = require('express');
 const DailyStats = require('../models/DailyStats');
 const User = require('../models/User');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
-const { checkUserLockStatus, updateUserLockedDates, getBangkokTime } = require('../services/lockCheckService');
+const { getBangkokTime } = require('../utils/dateHelper');
 
 const router = express.Router();
 
@@ -94,11 +94,7 @@ router.post('/increment', async (req, res) => {
 router.get('/daily', requireAdmin, async (req, res) => {
   try {
     const { date } = req.query;
-    
-    const now = new Date();
-    const bangkokOffset = 7 * 60;
-    const localOffset = now.getTimezoneOffset();
-    const bangkokNow = new Date(now.getTime() + (bangkokOffset + localOffset) * 60000);
+    const bangkokNow = getBangkokTime();
     
     let queryDate;
     if (date) {
@@ -186,13 +182,8 @@ router.get('/history', requireAdmin, async (req, res) => {
 router.get('/my-stats', async (req, res) => {
   try {
     const { date } = req.query;
-    
     const userId = req.user.id;
-    
-    const now = new Date();
-    const bangkokOffset = 7 * 60;
-    const localOffset = now.getTimezoneOffset();
-    const bangkokNow = new Date(now.getTime() + (bangkokOffset + localOffset) * 60000);
+    const bangkokNow = getBangkokTime();
     
     let queryDate;
     if (date) {
@@ -215,8 +206,6 @@ router.get('/my-stats', async (req, res) => {
           friendsAddedCount: stats.friendsAddedCount,
           groupsCreatedCount: stats.groupsCreatedCount,
           messagesSentCount: stats.messagesSentCount,
-          depositCount: stats.depositCount,
-          depositAmount: stats.depositAmount,
           updatedAt: stats.updatedAt
         }
       });
@@ -228,8 +217,6 @@ router.get('/my-stats', async (req, res) => {
           friendsAddedCount: 0,
           groupsCreatedCount: 0,
           messagesSentCount: 0,
-          depositCount: null,
-          depositAmount: null,
           updatedAt: null
         }
       });
@@ -243,253 +230,6 @@ router.get('/my-stats', async (req, res) => {
     });
   }
 });
-
-router.put('/update-deposit', async (req, res) => {
-  try {
-    const { username, hwid, date, depositCount, depositAmount } = req.body;
-    const clientType = req.headers['x-client-type'];
-
-    if (!username || !date || depositCount === undefined || depositAmount === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields: username, date, depositCount, depositAmount'
-      });
-    }
-
-    if (clientType === 'LineAPIBot' && !hwid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required field: hwid'
-      });
-    }
-
-    if (!Number.isInteger(depositCount) || depositCount < 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'depositCount must be a non-negative integer'
-      });
-    }
-
-    if (typeof depositAmount !== 'number' || depositAmount < 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'depositAmount must be a non-negative number'
-      });
-    }
-
-    const user = await User.findOne({ user: username });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    if (clientType === 'LineAPIBot') {
-      if (user.hwid && user.hwid !== hwid) {
-        return res.status(403).json({
-          success: false,
-          message: 'HWID mismatch'
-        });
-      }
-    }
-
-    const parts = date.split('-');
-    const targetDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
-
-    const existingStats = await DailyStats.findOne({ user: user._id, date: targetDate });
-    if (!existingStats) {
-      return res.status(400).json({
-        success: false,
-        message: 'No stats found for this date. Cannot add deposit to a day with no activity.'
-      });
-    }
-
-    const hasActivity = existingStats.registrationsCount > 0 || 
-                       existingStats.friendsAddedCount > 0 || 
-                       existingStats.groupsCreatedCount > 0 ||
-                       existingStats.messagesSentCount > 0;
-
-    if (!hasActivity) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot add deposit to a day with no activity'
-      });
-    }
-
-    if (existingStats.depositCount !== null || existingStats.depositAmount !== null) {
-      return res.status(400).json({
-        success: false,
-        message: 'Deposit already recorded for this date. Cannot modify.'
-      });
-    }
-
-    existingStats.depositCount = depositCount;
-    existingStats.depositAmount = depositAmount;
-    await existingStats.save();
-
-    user.lastDepositUpdateAt = new Date();
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Deposit stats updated successfully',
-      stats: existingStats
-    });
-
-  } catch (error) {
-    console.error('Update deposit error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while updating deposit'
-    });
-  }
-});
-
-router.post('/lock-account', async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { date } = req.body;
-    
-    if (!date) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required field: date'
-      });
-    }
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    const parts = date.split('-');
-    const lockDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
-    
-    if (!user.lockedDates || !Array.isArray(user.lockedDates)) {
-      user.lockedDates = [];
-    }
-    
-    const isAlreadyLocked = user.lockedDates.some(d => 
-      d.getTime() === lockDate.getTime()
-    );
-    
-    if (!isAlreadyLocked) {
-      user.lockedDates.push(lockDate);
-      await user.save();
-    }
-    
-    res.json({
-      success: true,
-      message: 'Account locked successfully',
-      lockedDate: lockDate.toISOString().split('T')[0]
-    });
-    
-  } catch (error) {
-    console.error('Lock account error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while locking account'
-    });
-  }
-});
-
-router.get('/check-update', async (req, res) => {
-  try {
-    const userId = req.user.id;
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      lastDepositUpdateAt: user.lastDepositUpdateAt ? user.lastDepositUpdateAt.toISOString() : null
-    });
-    
-  } catch (error) {
-    console.error('Check update error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while checking update'
-    });
-  }
-});
-
-
-router.get('/check-lock', async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { date } = req.query;
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    const lockResult = await checkUserLockStatus(userId);
-    await updateUserLockedDates(userId, lockResult);
-    
-    const updatedUser = await User.findById(userId);
-    const normalizedLockedDates = (updatedUser.lockedDates || []).map(d => {
-      const dateObj = new Date(d);
-      dateObj.setHours(0, 0, 0, 0);
-      return dateObj;
-    });
-    
-    if (!date) {
-      return res.json({
-        success: true,
-        isLocked: normalizedLockedDates.length > 0,
-        lockedDates: normalizedLockedDates.map(d => d.toISOString().split('T')[0]),
-        activeDates: updatedUser.activeDates || []
-      });
-    }
-    
-    const parts = date.split('-');
-    const checkDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
-    
-    const isLocked = normalizedLockedDates.some(d => 
-      d.getTime() === checkDate.getTime()
-    );
-    
-    const stats = await DailyStats.findOne({ 
-      user: userId, 
-      date: checkDate 
-    });
-    
-    const hasDepositData = stats && 
-      stats.depositCount !== null && 
-      stats.depositAmount !== null;
-    
-    const finalIsLocked = isLocked && !hasDepositData;
-    
-    res.json({
-      success: true,
-      isLocked: finalIsLocked,
-      lockedDate: checkDate.toISOString().split('T')[0],
-      hasDepositData: hasDepositData
-    });
-    
-  } catch (error) {
-    console.error('Check lock error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while checking lock status'
-    });
-  }
-});
-
 
 router.get('/summary', requireAdmin, async (req, res) => {
   try {
@@ -582,17 +322,13 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
             registrations: 0,
             friends: 0,
             groups: 0,
-            messages: 0,
-            depositCount: 0,
-            depositAmount: 0
+            messages: 0
           },
           yesterday: {
             registrations: 0,
             friends: 0,
             groups: 0,
-            messages: 0,
-            depositCount: 0,
-            depositAmount: 0
+            messages: 0
           }
         });
       }
@@ -601,8 +337,6 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
       team.today.friends += stat.friendsAddedCount || 0;
       team.today.groups += stat.groupsCreatedCount || 0;
       team.today.messages += stat.messagesSentCount || 0;
-      if (stat.depositCount !== null) team.today.depositCount += stat.depositCount;
-      if (stat.depositAmount !== null) team.today.depositAmount += stat.depositAmount;
     });
 
 
@@ -615,17 +349,13 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
             registrations: 0,
             friends: 0,
             groups: 0,
-            messages: 0,
-            depositCount: 0,
-            depositAmount: 0
+            messages: 0
           },
           yesterday: {
             registrations: 0,
             friends: 0,
             groups: 0,
-            messages: 0,
-            depositCount: 0,
-            depositAmount: 0
+            messages: 0
           }
         });
       }
@@ -634,8 +364,6 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
       team.yesterday.friends += stat.friendsAddedCount || 0;
       team.yesterday.groups += stat.groupsCreatedCount || 0;
       team.yesterday.messages += stat.messagesSentCount || 0;
-      if (stat.depositCount !== null) team.yesterday.depositCount += stat.depositCount;
-      if (stat.depositAmount !== null) team.yesterday.depositAmount += stat.depositAmount;
     });
 
 
@@ -650,20 +378,12 @@ router.get('/team-summary', requireAdmin, async (req, res) => {
       registrations: acc.registrations + team.today.registrations,
       friends: acc.friends + team.today.friends,
       groups: acc.groups + team.today.groups,
-      messages: acc.messages + team.today.messages,
-      depositCount: acc.depositCount + team.today.depositCount,
-      depositAmount: acc.depositAmount + team.today.depositAmount,
-      yesterdayDepositCount: acc.yesterdayDepositCount + team.yesterday.depositCount,
-      yesterdayDepositAmount: acc.yesterdayDepositAmount + team.yesterday.depositAmount
+      messages: acc.messages + team.today.messages
     }), {
       registrations: 0,
       friends: 0,
       groups: 0,
-      messages: 0,
-      depositCount: 0,
-      depositAmount: 0,
-      yesterdayDepositCount: 0,
-      yesterdayDepositAmount: 0
+      messages: 0
     });
 
     res.json({
