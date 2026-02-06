@@ -309,7 +309,7 @@ router.patch('/:id/enabled', requireAdmin, async (req, res) => {
   }
 });
 
-// Send shutdown command to client (Admin only)
+// Toggle shutdown command (Admin only)
 router.post('/:id/shutdown', requireAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -320,20 +320,33 @@ router.post('/:id/shutdown', requireAdmin, async (req, res) => {
       });
     }
 
-    user.pendingCommand = 'shutdown';
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Shutdown command sent to client',
-      user
-    });
+    if (user.pendingCommand === 'shutdown') {
+      user.pendingCommand = null;
+      await user.save();
+      await user.populate('team', 'name');
+      
+      return res.json({
+        success: true,
+        message: 'Shutdown command cancelled',
+        user
+      });
+    } else {
+      user.pendingCommand = 'shutdown';
+      await user.save();
+      await user.populate('team', 'name');
+      
+      return res.json({
+        success: true,
+        message: 'Shutdown command set',
+        user
+      });
+    }
 
   } catch (error) {
-    console.error('Send shutdown command error:', error);
+    console.error('Toggle shutdown command error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error while sending shutdown command'
+      message: 'Server error while toggling shutdown command'
     });
   }
 });
