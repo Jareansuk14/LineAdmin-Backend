@@ -48,7 +48,6 @@ router.post('/login', [
 
     if (clientType === 'LineAPIBot') {
       if (hwid) {
-        // Check if this HWID is already used by another user
         const existingUserWithHwid = await User.findOne({ 
           hwid: hwid, 
           _id: { $ne: foundUser._id } 
