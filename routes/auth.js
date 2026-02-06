@@ -38,6 +38,14 @@ router.post('/login', [
       });
     }
 
+    // Block LineAPIBot login when account is disabled
+    if (clientType === 'LineAPIBot' && foundUser.enabled === false) {
+      return res.status(403).json({
+        success: false,
+        message: 'บัญชีนี้ถูกปิดการใช้งาน ไม่สามารถล็อกอินได้'
+      });
+    }
+
     if (clientType === 'LineAPIBot') {
       if (hwid) {
         if (foundUser.hwid && foundUser.hwid !== hwid) {

@@ -61,6 +61,10 @@ const userSchema = new mongoose.Schema({
   clientVersion: {
     type: String,
     default: null
+  },
+  enabled: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true

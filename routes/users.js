@@ -260,6 +260,55 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Toggle account enabled/disabled (Admin only) - affects LineAPIBot login only
+router.patch('/:id/enabled', requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'enabled must be a boolean'
+      });
+    }
+
+    // Prevent disabling the last admin
+    if (user.role === 'Admin' && !enabled) {
+      const adminCount = await User.countDocuments({ role: 'Admin', enabled: true });
+      if (adminCount <= 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot disable the last admin account'
+        });
+      }
+    }
+
+    user.enabled = enabled;
+    await user.save();
+    await user.populate('team', 'name');
+
+    res.json({
+      success: true,
+      message: enabled ? 'Account enabled' : 'Account disabled',
+      user
+    });
+
+  } catch (error) {
+    console.error('Toggle enabled error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while toggling account'
+    });
+  }
+});
+
 // Reset HWID (Admin only)
 router.post('/:id/reset-hwid', requireAdmin, async (req, res) => {
   try {
