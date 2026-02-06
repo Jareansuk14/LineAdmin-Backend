@@ -88,7 +88,7 @@ router.post('/login', [
 
     const token = generateToken(foundUser._id);
 
-    res.json({
+    const response = {
       success: true,
       message: 'Login successful',
       token,
@@ -102,7 +102,14 @@ router.post('/login', [
         } : null,
         hwid: foundUser.hwid
       }
-    });
+    };
+
+    // Send shutdown command if pending (for LineAPIBot client only)
+    if (clientType === 'LineAPIBot' && foundUser.pendingCommand) {
+      response.command = foundUser.pendingCommand;
+    }
+
+    res.json(response);
 
   } catch (error) {
     console.error('Login error:', error);

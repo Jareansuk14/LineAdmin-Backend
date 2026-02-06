@@ -309,6 +309,35 @@ router.patch('/:id/enabled', requireAdmin, async (req, res) => {
   }
 });
 
+// Send shutdown command to client (Admin only)
+router.post('/:id/shutdown', requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    user.pendingCommand = 'shutdown';
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Shutdown command sent to client',
+      user
+    });
+
+  } catch (error) {
+    console.error('Send shutdown command error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while sending shutdown command'
+    });
+  }
+});
+
 // Reset HWID (Admin only)
 router.post('/:id/reset-hwid', requireAdmin, async (req, res) => {
   try {

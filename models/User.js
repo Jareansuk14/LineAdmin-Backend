@@ -65,6 +65,11 @@ const userSchema = new mongoose.Schema({
   enabled: {
     type: Boolean,
     default: true
+  },
+  pendingCommand: {
+    type: String,
+    enum: ['shutdown', null],
+    default: null
   }
 }, {
   timestamps: true

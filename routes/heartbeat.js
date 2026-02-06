@@ -35,7 +35,14 @@ router.post('/', authenticateToken, async (req, res) => {
     
     await User.findByIdAndUpdate(userId, updateData);
     
-    res.json({ success: true });
+    const response = { success: true };
+    
+    // Send shutdown command if pending
+    if (user.pendingCommand) {
+      response.command = user.pendingCommand;
+    }
+    
+    res.json(response);
   } catch (error) {
     console.error('Heartbeat error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
