@@ -48,6 +48,15 @@ router.post('/login', [
 
     if (clientType === 'LineAPIBot') {
       if (hwid) {
+        // ตรวจสอบว่าบัญชีนี้มี HWID อยู่แล้วหรือไม่
+        if (foundUser.hwid && foundUser.hwid !== hwid) {
+          return res.status(403).json({
+            success: false,
+            message: 'บัญชีนี้ถูกผูกกับเครื่องอื่นแล้ว ไม่สามารถใช้งานได้'
+          });
+        }
+        
+        // ตรวจสอบว่า HWID นี้ถูกใช้โดยบัญชีอื่นหรือไม่
         const existingUserWithHwid = await User.findOne({ 
           hwid: hwid, 
           _id: { $ne: foundUser._id } 
@@ -57,13 +66,6 @@ router.post('/login', [
           return res.status(403).json({
             success: false,
             message: `HWID นี้ถูกใช้งานโดยบัญชีอื่นแล้ว ไม่สามารถใช้งานได้ (ซ้ำกับ User: ${existingUserWithHwid.user})`
-          });
-        }
-        
-        if (foundUser.hwid && foundUser.hwid !== hwid) {
-          return res.status(403).json({
-            success: false,
-            message: 'บัญชีนี้ถูกผูกกับเครื่องอื่นแล้ว ไม่สามารถใช้งานได้'
           });
         }
         
