@@ -56,7 +56,7 @@ router.post('/login', [
         if (existingUserWithHwid) {
           return res.status(403).json({
             success: false,
-            message: 'HWID นี้ถูกใช้งานโดยบัญชีอื่นแล้ว ไม่สามารถใช้งานได้'
+            message: `HWID นี้ถูกใช้งานโดยบัญชีอื่นแล้ว ไม่สามารถใช้งานได้ (ซ้ำกับ User: ${existingUserWithHwid.user})`
           });
         }
         
