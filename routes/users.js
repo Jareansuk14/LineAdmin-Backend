@@ -260,6 +260,56 @@ router.delete('/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Toggle feature Farm (Admin only) - shows/hides "จัดการไลน์ไก่" in LineAPIBot
+router.patch('/:id/feature-farm', requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'enabled must be a boolean' });
+    }
+    user.featureFarm = enabled;
+    await user.save();
+    await user.populate('team', 'name');
+    res.json({
+      success: true,
+      message: enabled ? 'ฟาม เปิดใช้งาน' : 'ฟาม ปิดใช้งาน',
+      user
+    });
+  } catch (error) {
+    console.error('Toggle feature-farm error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Toggle feature Board (Admin only) - shows/hides "+เพิ่มบัญชี" in LineAPIBot
+router.patch('/:id/feature-board', requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'enabled must be a boolean' });
+    }
+    user.featureBoard = enabled;
+    await user.save();
+    await user.populate('team', 'name');
+    res.json({
+      success: true,
+      message: enabled ? 'บอร์ด เปิดใช้งาน' : 'บอร์ด ปิดใช้งาน',
+      user
+    });
+  } catch (error) {
+    console.error('Toggle feature-board error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Toggle account enabled/disabled (Admin only) - affects LineAPIBot login only
 router.patch('/:id/enabled', requireAdmin, async (req, res) => {
   try {

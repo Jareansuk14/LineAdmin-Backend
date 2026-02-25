@@ -66,6 +66,14 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  featureFarm: {
+    type: Boolean,
+    default: true
+  },
+  featureBoard: {
+    type: Boolean,
+    default: true
+  },
   pendingCommand: {
     type: String,
     enum: ['shutdown', null],

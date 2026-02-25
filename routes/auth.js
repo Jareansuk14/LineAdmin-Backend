@@ -114,7 +114,9 @@ router.post('/login', [
           id: foundUser.team._id,
           name: foundUser.team.name
         } : null,
-        hwid: foundUser.hwid
+        hwid: foundUser.hwid,
+        featureFarm: foundUser.featureFarm !== false,
+        featureBoard: foundUser.featureBoard !== false
       }
     };
 
