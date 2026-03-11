@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../models/User');
+const PhoneData = require('../models/PhoneData');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -40,6 +41,18 @@ router.post('/', authenticateToken, async (req, res) => {
     // Send shutdown command if pending
     if (user.pendingCommand) {
       response.command = user.pendingCommand;
+    }
+    
+    // Check for pending phone data
+    const pendingPhoneData = await PhoneData.countDocuments({
+      targetUser: userId,
+      isDownloaded: false,
+      isDeleted: false
+    });
+    
+    if (pendingPhoneData > 0) {
+      response.hasPendingPhoneData = true;
+      response.pendingPhoneDataCount = pendingPhoneData;
     }
     
     res.json(response);

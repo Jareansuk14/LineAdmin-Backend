@@ -11,6 +11,7 @@ const teamRoutes = require('./routes/teams');
 const statsRoutes = require('./routes/stats');
 const heartbeatRoutes = require('./routes/heartbeat');
 const statusRoutes = require('./routes/status');
+const phoneDataRoutes = require('./routes/phoneData');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,6 +45,7 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/heartbeat', heartbeatRoutes);
 app.use('/api/status', statusRoutes);
+app.use('/api/phone-data', phoneDataRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -65,8 +65,8 @@ router.post('/', [
   body('role')
     .notEmpty()
     .withMessage('Role is required')
-    .isIn(['Admin', 'User'])
-    .withMessage('Role must be either Admin or User'),
+    .isIn(['Admin', 'Head', 'User'])
+    .withMessage('Role must be Admin, Head, or User'),
   body('team')
     .optional()
     .isMongoId()
@@ -143,8 +143,8 @@ router.put('/:id', [
     .withMessage('Password must be at least 4 characters long'),
   body('role')
     .optional()
-    .isIn(['Admin', 'User'])
-    .withMessage('Role must be either Admin or User'),
+    .isIn(['Admin', 'Head', 'User'])
+    .withMessage('Role must be Admin, Head, or User'),
   body('team')
     .optional()
     .custom((value) => {
