@@ -1,7 +1,7 @@
 const express = require('express');
 const DailyStats = require('../models/DailyStats');
 const User = require('../models/User');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, requireAdmin, requireAdminOrAudit } = require('../middleware/auth');
 const { getBangkokTime } = require('../utils/dateHelper');
 
 const router = express.Router();
@@ -91,7 +91,7 @@ router.post('/increment', async (req, res) => {
   }
 });
 
-router.get('/daily', requireAdmin, async (req, res) => {
+router.get('/daily', requireAdminOrAudit, async (req, res) => {
   try {
     const { date } = req.query;
     const bangkokNow = getBangkokTime();
@@ -130,7 +130,7 @@ router.get('/daily', requireAdmin, async (req, res) => {
   }
 });
 
-router.get('/history', requireAdmin, async (req, res) => {
+router.get('/history', requireAdminOrAudit, async (req, res) => {
   try {
     const { startDate, endDate, userId } = req.query;
 
@@ -231,7 +231,7 @@ router.get('/my-stats', async (req, res) => {
   }
 });
 
-router.get('/summary', requireAdmin, async (req, res) => {
+router.get('/summary', requireAdminOrAudit, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
@@ -282,7 +282,7 @@ router.get('/summary', requireAdmin, async (req, res) => {
 });
 
 
-router.get('/team-summary', requireAdmin, async (req, res) => {
+router.get('/team-summary', requireAdminOrAudit, async (req, res) => {
   try {
     const { date } = req.query;
     

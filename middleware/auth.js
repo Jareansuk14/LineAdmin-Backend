@@ -46,6 +46,17 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+// Middleware to check if user is admin or audit
+const requireAdminOrAudit = (req, res, next) => {
+  if (req.user.role !== 'Admin' && req.user.role !== 'Audit') {
+    return res.status(403).json({
+      success: false,
+      message: 'Admin or Audit access required'
+    });
+  }
+  next();
+};
+
 // Generate JWT token
 const generateToken = (userId) => {
   return jwt.sign(
@@ -58,5 +69,6 @@ const generateToken = (userId) => {
 module.exports = {
   authenticateToken,
   requireAdmin,
+  requireAdminOrAudit,
   generateToken
 };
