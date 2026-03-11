@@ -68,7 +68,7 @@ router.post('/', [
     .isIn(['Admin', 'Audit', 'Head', 'User'])
     .withMessage('Role must be Admin, Audit, Head, or User'),
   body('team')
-    .optional()
+    .optional({ nullable: true, checkFalsy: true })
     .isMongoId()
     .withMessage('Team must be a valid MongoDB ObjectId')
 ], async (req, res) => {
