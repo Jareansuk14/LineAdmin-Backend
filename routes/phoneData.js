@@ -1,6 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const PhoneData = require('../models/PhoneData');
+const UploadHistory = require('../models/UploadHistory');
 const User = require('../models/User');
 const { authenticateToken } = require('../middleware/auth');
 
@@ -123,6 +124,17 @@ router.post('/upload',
       
       await phoneData.save();
       
+      // Create upload history record
+      const uploadHistory = new UploadHistory({
+        targetUser: targetUserId,
+        uploadedBy: req.user.id,
+        totalCount: normalizedNumbers.length,
+        uploadedAt: phoneData.uploadedAt,
+        phoneDataId: phoneData._id
+      });
+      
+      await uploadHistory.save();
+      
       res.json({
         success: true,
         message: 'Phone data uploaded successfully',
@@ -177,11 +189,10 @@ router.get('/history/:userId', authenticateToken, async (req, res) => {
     
     const { userId } = req.params;
     
-    const history = await PhoneData.find({ 
-      targetUser: userId,
-      isDeleted: false 
+    const history = await UploadHistory.find({ 
+      targetUser: userId
     })
-      .select('totalCount uploadedAt isDownloaded downloadedAt uploadedBy')
+      .select('totalCount uploadedAt isDownloaded downloadedAt uploadedBy isDeleted deletedAt')
       .populate('uploadedBy', 'user')
       .sort({ uploadedAt: -1 });
     
@@ -196,10 +207,10 @@ router.get('/pending', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
+    // No need to check isDeleted since we use hard delete
     const pendingData = await PhoneData.find({
       targetUser: userId,
-      isDownloaded: false,
-      isDeleted: false
+      isDownloaded: false
     })
       .select('phoneNumbers totalCount uploadedAt uploadedBy')
       .populate('uploadedBy', 'user')
@@ -224,17 +235,23 @@ router.post('/mark-downloaded/:id', authenticateToken, async (req, res) => {
     
     const phoneData = await PhoneData.findOne({
       _id: id,
-      targetUser: userId,
-      isDeleted: false
+      targetUser: userId
     });
     
     if (!phoneData) {
       return res.status(404).json({ success: false, message: 'Phone data not found' });
     }
     
+    const now = new Date();
     phoneData.isDownloaded = true;
-    phoneData.downloadedAt = new Date();
+    phoneData.downloadedAt = now;
     await phoneData.save();
+    
+    // Update upload history
+    await UploadHistory.findOneAndUpdate(
+      { phoneDataId: id },
+      { isDownloaded: true, downloadedAt: now }
+    );
     
     res.json({ success: true, message: 'Marked as downloaded' });
   } catch (error) {
@@ -257,9 +274,14 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Phone data not found' });
     }
     
-    phoneData.isDeleted = true;
-    phoneData.deletedAt = new Date();
-    await phoneData.save();
+    // Update upload history to mark as deleted
+    await UploadHistory.findOneAndUpdate(
+      { phoneDataId: id },
+      { isDeleted: true, deletedAt: new Date(), phoneDataId: null }
+    );
+    
+    // Hard delete phone data to save space
+    await PhoneData.findByIdAndDelete(id);
     
     res.json({ success: true, message: 'Phone data deleted' });
   } catch (error) {

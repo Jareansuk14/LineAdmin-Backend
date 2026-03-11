@@ -43,11 +43,10 @@ router.post('/', authenticateToken, async (req, res) => {
       response.command = user.pendingCommand;
     }
     
-    // Check for pending phone data
+    // Check for pending phone data (no need to check isDeleted since we use hard delete)
     const pendingPhoneData = await PhoneData.countDocuments({
       targetUser: userId,
-      isDownloaded: false,
-      isDeleted: false
+      isDownloaded: false
     });
     
     if (pendingPhoneData > 0) {
