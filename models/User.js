@@ -74,6 +74,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  featureLocalData: {
+    type: Boolean,
+    default: false
+  },
   pendingCommand: {
     type: String,
     enum: ['shutdown', null],

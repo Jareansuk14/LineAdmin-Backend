@@ -116,7 +116,8 @@ router.post('/login', [
         } : null,
         hwid: foundUser.hwid,
         featureFarm: foundUser.featureFarm !== false,
-        featureBoard: foundUser.featureBoard !== false
+        featureBoard: foundUser.featureBoard !== false,
+        featureLocalData: foundUser.featureLocalData === true
       }
     };
 
