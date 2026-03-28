@@ -20,6 +20,10 @@ const phoneDataSchema = new mongoose.Schema({
     required: true,
     default: 0
   },
+  fileName: {
+    type: String,
+    required: true
+  },
   isDownloaded: {
     type: Boolean,
     default: false

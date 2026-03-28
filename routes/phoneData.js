@@ -61,16 +61,9 @@ router.get('/team-members', authenticateToken, async (req, res) => {
     let query = {};
     const { teamId } = req.query;
     
-    if (currentUser.role === 'Head') {
-      if (!currentUser.team) {
-        return res.status(400).json({ success: false, message: 'Head user must be assigned to a team' });
-      }
-      query = { team: currentUser.team._id };
-    } else if (currentUser.role === 'Audit' && teamId) {
-      // Audit can filter by team
+    if (currentUser.role === 'Audit' && teamId) {
       query = { team: teamId };
     }
-    // Admin and Audit without teamId filter see all users
     
     const members = await User.find(query)
       .select('user role lastLoginAt team')
@@ -88,7 +81,8 @@ router.post('/upload',
   authenticateToken,
   [
     body('targetUserId').notEmpty().withMessage('Target user ID is required'),
-    body('phoneNumbers').isArray({ min: 1 }).withMessage('Phone numbers array is required')
+    body('phoneNumbers').isArray({ min: 1 }).withMessage('Phone numbers array is required'),
+    body('fileName').notEmpty().withMessage('File name is required')
   ],
   async (req, res) => {
     try {
@@ -102,18 +96,11 @@ router.post('/upload',
         return res.status(403).json({ success: false, message: 'Access denied. Head or Admin role required.' });
       }
       
-      const { targetUserId, phoneNumbers } = req.body;
+      const { targetUserId, phoneNumbers, fileName } = req.body;
       
       const targetUser = await User.findById(targetUserId);
       if (!targetUser) {
         return res.status(404).json({ success: false, message: 'Target user not found' });
-      }
-      
-      if (currentUser.role === 'Head') {
-        if (!currentUser.team || !targetUser.team || 
-            currentUser.team.toString() !== targetUser.team.toString()) {
-          return res.status(403).json({ success: false, message: 'Can only upload to team members' });
-        }
       }
       
       const normalizedNumbers = normalizePhoneNumbers(phoneNumbers);
@@ -126,18 +113,19 @@ router.post('/upload',
         targetUser: targetUserId,
         uploadedBy: req.user.id,
         phoneNumbers: normalizedNumbers,
-        totalCount: normalizedNumbers.length
+        totalCount: normalizedNumbers.length,
+        fileName: fileName
       });
       
       await phoneData.save();
       
-      // Create upload history record
       const uploadHistory = new UploadHistory({
         targetUser: targetUserId,
         uploadedBy: req.user.id,
         totalCount: normalizedNumbers.length,
         uploadedAt: phoneData.uploadedAt,
-        phoneDataId: phoneData._id
+        phoneDataId: phoneData._id,
+        fileName: fileName
       });
       
       await uploadHistory.save();
@@ -148,7 +136,8 @@ router.post('/upload',
         data: {
           id: phoneData._id,
           totalCount: normalizedNumbers.length,
-          uploadedAt: phoneData.uploadedAt
+          uploadedAt: phoneData.uploadedAt,
+          fileName: fileName
         }
       });
     } catch (error) {
@@ -200,7 +189,7 @@ router.get('/history/:userId', authenticateToken, async (req, res) => {
     const history = await UploadHistory.find({ 
       targetUser: userId
     })
-      .select('totalCount uploadedAt isDownloaded downloadedAt uploadedBy isDeleted deletedAt')
+      .select('totalCount uploadedAt isDownloaded downloadedAt uploadedBy isDeleted deletedAt fileName')
       .populate('uploadedBy', 'user')
       .sort({ uploadedAt: -1 });
     
@@ -215,12 +204,11 @@ router.get('/pending', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // No need to check isDeleted since we use hard delete
     const pendingData = await PhoneData.find({
       targetUser: userId,
       isDownloaded: false
     })
-      .select('phoneNumbers totalCount uploadedAt uploadedBy')
+      .select('phoneNumbers totalCount uploadedAt uploadedBy fileName')
       .populate('uploadedBy', 'user')
       .sort({ uploadedAt: 1 });
     
