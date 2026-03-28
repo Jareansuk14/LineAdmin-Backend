@@ -81,8 +81,7 @@ router.post('/upload',
   authenticateToken,
   [
     body('targetUserId').notEmpty().withMessage('Target user ID is required'),
-    body('phoneNumbers').isArray({ min: 1 }).withMessage('Phone numbers array is required'),
-    body('fileName').notEmpty().withMessage('File name is required')
+    body('phoneNumbers').isArray({ min: 1 }).withMessage('Phone numbers array is required')
   ],
   async (req, res) => {
     try {

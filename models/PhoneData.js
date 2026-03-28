@@ -22,7 +22,7 @@ const phoneDataSchema = new mongoose.Schema({
   },
   fileName: {
     type: String,
-    required: true
+    default: null
   },
   isDownloaded: {
     type: Boolean,
