@@ -325,7 +325,7 @@ router.patch('/:id/feature-local-data', requireAdmin, async (req, res) => {
     await user.populate('team', 'name');
     res.json({
       success: true,
-      message: enabled ? 'LocalData เปิดใช้งาน' : 'LocalData ปิดใช้งาน',
+      message: enabled ? 'Local DATA เปิดใช้งาน' : 'Local DATA ปิดใช้งาน',
       user
     });
   } catch (error) {
