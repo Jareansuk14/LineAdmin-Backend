@@ -61,7 +61,7 @@ router.get('/team-members', authenticateToken, async (req, res) => {
     let query = {};
     const { teamId } = req.query;
     
-    if (currentUser.role === 'Audit' && teamId) {
+    if (teamId && teamId !== 'all') {
       query = { team: teamId };
     }
     
